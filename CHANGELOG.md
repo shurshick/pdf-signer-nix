@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.4
+
+- Fixed CryptoPro certificate parsing on Linux when `certmgr` writes certificate listings to `stderr` instead of `stdout`.
+
 ## v0.2.3
 
 - Fixed CryptoPro certificate discovery to read both `uMy` and `mMy` stores on Linux.

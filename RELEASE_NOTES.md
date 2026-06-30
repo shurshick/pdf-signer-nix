@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.2.4
+
+Patch release with CryptoPro output handling fix.
+
+### Русский
+
+- Исправлен разбор сертификатов на Linux: теперь приложение читает вывод `certmgr` и из `stdout`, и из `stderr`.
+
+### English
+
+- Fixed certificate parsing on Linux: the app now reads `certmgr` output from both `stdout` and `stderr`.
+
 ## v0.2.3
 
 Patch release with CryptoPro certificate store fix.

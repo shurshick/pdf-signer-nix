@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.3}"
+VERSION="${VERSION:-0.2.4}"
 ARCH="${DEB_ARCH:-amd64}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILDROOT="$(mktemp -d)"

@@ -74,7 +74,8 @@ def list_certificates(tools: ToolPaths | None = None) -> list[Certificate]:
         if proc.returncode != 0:
             errors.append(f"{store}: {(proc.stderr or proc.stdout or 'certmgr failed').strip()}")
             continue
-        certificates.extend(parse_certmgr_output(proc.stdout))
+        output = "\n".join(part.strip() for part in (proc.stdout, proc.stderr) if part and part.strip())
+        certificates.extend(parse_certmgr_output(output))
 
     if certificates:
         return dedupe_certificates(certificates)

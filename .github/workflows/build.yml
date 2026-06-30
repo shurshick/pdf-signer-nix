@@ -34,12 +34,13 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           else
-            echo "VERSION=0.2.2" >> "$GITHUB_ENV"
+            echo "VERSION=0.2.4" >> "$GITHUB_ENV"
           fi
 
       - name: Build EL8 binary and RPM
         run: |
           docker run --rm \
+            -e VERSION \
             -v "$PWD:/workspace" \
             -w /workspace \
             almalinux:8 \
