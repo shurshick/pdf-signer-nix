@@ -11,5 +11,5 @@ test -n "$(find "${ARTIFACTS}" -maxdepth 1 -name 'pdf-signer-nix-*.rpm' -print -
 dpkg-deb -c "${ARTIFACTS}/pdf-signer-nix_${VERSION}_amd64.deb" > "${ARTIFACTS}/deb-contents.txt"
 grep -q '/usr/bin/pdf-signer-nix' "${ARTIFACTS}/deb-contents.txt"
 rm -f "${ARTIFACTS}/deb-contents.txt"
-sha256sum "${ARTIFACTS}"/* > "${ARTIFACTS}/SHA256SUMS.txt"
+(cd "${ARTIFACTS}" && sha256sum pdf-signer-nix *.deb *.rpm > SHA256SUMS.txt)
 cat "${ARTIFACTS}/SHA256SUMS.txt"
