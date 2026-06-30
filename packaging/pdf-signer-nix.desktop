@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PDF Signer Nix
+Name[ru]=PDF Signer Nix
+Comment=Sign PDF files with CryptoPro CSP and visible stamp
+Comment[ru]=Подписание PDF через CryptoPro CSP с видимым штампом
+Exec=pdf-signer-nix
+Icon=pdf-signer-nix
+Terminal=false
+Categories=Office;Utility;
