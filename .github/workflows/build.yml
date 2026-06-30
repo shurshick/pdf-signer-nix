@@ -52,6 +52,7 @@ jobs:
               /usr/bin/pdf-signer-nix --version
               /usr/bin/pdf-signer-nix --self-test || true
             '
+          sudo chown -R "$USER:$USER" artifacts dist build .venv-build || true
 
       - name: Build DEB from EL8 binary
         run: SKIP_BINARY_BUILD=1 VERSION=${VERSION} ./scripts/build_deb.sh
