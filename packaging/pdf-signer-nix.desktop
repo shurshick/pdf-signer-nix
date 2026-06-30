@@ -7,4 +7,4 @@ Comment[ru]=Подписание PDF через CryptoPro CSP с видимым 
 Exec=pdf-signer-nix
 Icon=pdf-signer-nix
 Terminal=false
-Categories=Office;Utility;
+Categories=Office;

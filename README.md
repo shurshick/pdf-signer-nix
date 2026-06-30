@@ -1,53 +1,60 @@
 # PDF Signer Nix
 
-Linux-приложение для подписания PDF через CryptoPro CSP, добавления видимого синего штампа и создания открепленных `.sig` подписей.
+`pdf-signer-nix` - Linux desktop-приложение для подписания PDF через CryptoPro CSP. Оно ставит видимый штамп, умеет делать встроенную подпись в PDF и открепленную подпись `.sig`.
 
-Это новый проект, написанный с нуля на Python. Он не является переносом старого Go/Fyne-кода.
+Это отдельный Python/Qt-проект с нуля. Не порт старого Go/Fyne-кода и не сервер.
 
-## Возможности
+## Что умеет
 
-- обычное desktop-приложение на Python/Qt;
-- выбор одного или нескольких PDF;
-- drag & drop PDF/.sig/.p7s, Delete и Ctrl+A в списках файлов;
-- выбор сертификата из CryptoPro CSP через `certmgr`;
-- видимый синий прозрачный штамп на всех, первой, последней или указанной странице;
-- редактор штампа с профилями `ГОСТ минимальный`, `ГОСТ стандартный`, `ГОСТ подробный` и `Custom`;
-- ручные координаты X/Y, перетаскивание штампа в preview и сброс позиции;
-- smart placement: поиск свободного угла без пересечения с текстом PDF;
-- логотип PNG/JPG в штампе;
-- включаемые поля штампа: владелец, организация, должность, ИНН, СНИЛС, издатель, серийный номер, отпечаток, причина, дата и свой текст;
-- встроенная PDF-подпись через `cryptcp`, если он установлен в составе CryptoPro;
+- подписание одного или нескольких PDF;
+- drag & drop PDF, `.sig`, `.p7s`;
+- выбор сертификата из CryptoPro CSP;
+- встроенная подпись PDF через `cryptcp`, если он установлен;
 - открепленная подпись `.sig` через `csptest`;
-- режим "только .sig": в PDF добавляется только штамп, криптографическая подпись создается отдельным файлом;
-- диагностика CryptoPro;
-- отдельное окно проверки PDF/.sig/.p7s с экспортом TXT/HTML и копированием отчета;
-- отдельное окно диагностики с сохранением отчета и переходом к логам;
-- окно "О приложении" с проверкой новых релизов на GitHub;
-- экспорт и импорт настроек JSON, включая совместимость с Windows-экспортом профилей и настроек;
-- логи в `$XDG_DATA_HOME/PDF Signer Nix/logs/app.log` или `~/.local/share/PDF Signer Nix/logs/app.log`;
-- сборка standalone-бинарника, `.deb`, `.rpm` и `SHA256SUMS.txt`.
+- режим "только `.sig`", когда в PDF остается только штамп;
+- редактор штампа с профилями `ГОСТ минимальный`, `ГОСТ стандартный`, `ГОСТ подробный` и `Custom`;
+- ручные координаты X/Y, перетаскивание штампа по preview и сброс позиции;
+- логотип в штампе, свой текст и настройка полей;
+- проверка PDF, `.sig`, `.p7s` с экспортом TXT/HTML;
+- окно диагностики CryptoPro и доступ к логам;
+- импорт и экспорт JSON-настроек, совместимый с Windows-версией;
+- готовые артефакты: standalone binary, `.deb`, `.rpm`, `SHA256SUMS.txt`.
 
-## Runtime Requirements
+## Что нужно для работы
 
-Минимальное внешнее условие: установленный CryptoPro CSP на Linux x86_64.
+Нужен Linux x86_64 и установленный CryptoPro CSP.
 
-Ожидаемые инструменты CryptoPro:
+Ожидаемые утилиты:
 
-- `/opt/cprocsp/bin/amd64/certmgr`;
-- `/opt/cprocsp/bin/amd64/csptest`;
-- `/opt/cprocsp/bin/amd64/cryptcp` для встроенной PDF-подписи.
+- `certmgr`
+- `csptest`
+- `cryptcp` для встроенной подписи PDF
 
-Если `cryptcp` отсутствует, приложение продолжит работать для штампа и открепленной `.sig` подписи, но встроенная PDF-подпись будет недоступна.
+Если `cryptcp` нет, приложение все равно работает для штампа, проверки и `.sig`, но встроенная подпись PDF будет недоступна.
 
-Python и Python-библиотеки пользователю устанавливать не нужно: релизные пакеты содержат PyInstaller-бинарник.
+CryptoPro в пакет не входит.
 
-## Запуск
+## Установка
+
+Готовые пакеты лежат в [релизах](https://github.com/shurshick/pdf-signer-nix/releases).
+
+DEB:
+
+```bash
+sudo dpkg -i pdf-signer-nix_0.2.4_amd64.deb
+```
+
+RPM:
+
+```bash
+sudo rpm -i pdf-signer-nix-0.2.4-1.x86_64.rpm
+```
+
+Запуск:
 
 ```bash
 pdf-signer-nix
 ```
-
-Приложение откроет обычное графическое окно.
 
 Проверка без GUI:
 
@@ -56,32 +63,56 @@ pdf-signer-nix --version
 pdf-signer-nix --self-test
 ```
 
+## Диагностика
+
+Лог приложения:
+
+```text
+$XDG_DATA_HOME/PDF Signer Nix/logs/app.log
+~/.local/share/PDF Signer Nix/logs/app.log
+```
+
+Если сертификаты не видны, сначала проверь:
+
+```bash
+pdf-signer-nix --self-test
+certmgr -list -store uMy
+certmgr -list -store mMy
+```
+
 ## Сборка
+
+Локальная разработка:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[dev]'
-pytest
+pytest -q
+```
+
+Сборка артефактов:
+
+```bash
 ./scripts/build_deb.sh
 ./scripts/build_rpm.sh
 ./scripts/verify_artifacts.sh
 ```
 
-## Артефакты
+RPM собирается на EL8-совместимой базе, чтобы пакет запускался на RedOS 8 и других системах с `glibc 2.28`.
 
-Релиз публикует:
+## Документация
 
-- `pdf-signer-nix`;
-- `pdf-signer-nix_0.2.4_amd64.deb`;
-- `pdf-signer-nix-0.2.4-1.x86_64.rpm`;
-- `SHA256SUMS.txt`.
+- [CryptoPro](docs/CRYPTOPRO.md)
+- [Packaging](docs/PACKAGING.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Changelog](CHANGELOG.md)
 
 ## English
 
-PDF Signer Nix is a new Python-based Linux application for signing PDFs with CryptoPro CSP, adding a visible blue stamp, and creating detached `.sig` signatures.
+PDF Signer Nix is a Linux desktop application for signing PDF files with CryptoPro CSP, adding a visible stamp, and creating detached `.sig` signatures.
 
-The release packages bundle Python and Qt dependencies into a single PyInstaller executable. The only required external runtime component is CryptoPro CSP with its command-line tools.
+Release packages bundle Python and Qt into a PyInstaller binary. CryptoPro CSP is the only required external runtime dependency.
 
 ## License
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pdf-signer-nix"
 version = "0.2.4"
-description = "Linux PDF signing and visible stamp tool with CryptoPro CSP"
+description = "Linux desktop app for PDF signing and visible stamp with CryptoPro CSP"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "AGPL-3.0-or-later" }

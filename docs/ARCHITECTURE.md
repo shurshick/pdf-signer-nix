@@ -1,11 +1,25 @@
 # Architecture
 
-`pdf-signer-nix` состоит из независимых слоев:
+Проект специально держится простым. Это локальное desktop-приложение без сервера и без лишней прослойки.
 
-- `crypto.py` - обнаружение и вызов инструментов CryptoPro;
-- `pdf_tools.py` - штамп PDF, overlay, smart placement;
-- `workflow.py` - сценарий подписи;
-- `gui.py` - обычный desktop UI на PySide6/Qt;
-- `scripts/` - сборка PyInstaller, DEB, RPM.
+## Основные части
 
-Такой подход оставляет runtime-пакеты простыми: пользователь получает один бинарник и desktop-файл, а Python/Qt-зависимости уже встроены.
+- `pdf_signer_nix/gui.py` - окно, диалоги, действия пользователя;
+- `pdf_signer_nix/workflow.py` - сценарий подписания и orchestration;
+- `pdf_signer_nix/crypto.py` - поиск и вызов утилит CryptoPro, разбор сертификатов;
+- `pdf_signer_nix/pdf_tools.py` - штамп, overlay, позиционирование, работа с PDF;
+- `pdf_signer_nix/verification.py` - проверка PDF, `.sig`, `.p7s`;
+- `pdf_signer_nix/diagnostics.py` - self-test и диагностический отчет;
+- `pdf_signer_nix/settings.py` - загрузка и сохранение настроек;
+- `scripts/` - сборка PyInstaller, DEB и RPM.
+
+## Почему так
+
+- GUI отделен от криптографии и PDF-логики;
+- системные утилиты CryptoPro не подменяются и не встраиваются;
+- релизный пакет остается обычным локальным приложением;
+- большая часть проблем диагностируется через `--self-test` и лог.
+
+## Важный принцип
+
+Если что-то уже надежно делает CryptoPro, проект не должен это переписывать сам. Его задача - дать нормальный Linux GUI, сценарий работы и корректную упаковку.

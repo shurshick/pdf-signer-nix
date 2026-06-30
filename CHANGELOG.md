@@ -2,41 +2,32 @@
 
 ## v0.2.4
 
-- Fixed CryptoPro certificate parsing on Linux when `certmgr` writes certificate listings to `stderr` instead of `stdout`.
+- Исправлен разбор вывода `certmgr` на Linux: список сертификатов теперь читается и из `stdout`, и из `stderr`.
 
 ## v0.2.3
 
-- Fixed CryptoPro certificate discovery to read both `uMy` and `mMy` stores on Linux.
+- Исправлен поиск сертификатов: приложение теперь читает оба хранилища CryptoPro, `uMy` и `mMy`.
 
 ## v0.2.2
 
-- Rebuilt Linux artifacts on an EL8-compatible base to restore runtime compatibility with RedOS 8 and other glibc 2.28 systems.
-- Pinned PySide6 to the EL8-compatible 6.8 branch and made the build scripts accept a custom Python binary.
+- Linux-артефакты пересобраны на EL8-совместимой базе для запуска на RedOS 8 и других системах с `glibc 2.28`.
+- `PySide6` зафиксирован на ветке `6.8.x`.
+- Сборочные скрипты теперь принимают `PYTHON_BIN`.
 
 ## v0.2.1
 
-- Fixed RPM packaging so the app no longer hard-requires CryptoPro binaries at install time.
-- Added Linux GUI runtime dependencies to DEB/RPM packages so the installed app starts on clean systems.
-- Switched the application icon to the Windows project icon with a transparent PNG background.
+- Исправлена RPM-упаковка: CryptoPro больше не нужен на этапе установки пакета.
+- В DEB и RPM добавлены runtime-зависимости Qt/EGL.
+- Иконка заменена на вариант из Windows-версии с прозрачным фоном.
 
 ## v0.2.0
 
-- Added a full stamp editor with built-in GOST profiles, custom profile save/load, manual coordinates, preview drag, logo scaling, and stamp field toggles.
-- Added signature verification dialog for PDF, `.sig`, and `.p7s` with TXT/HTML export and copyable reports.
-- Added diagnostics dialog with report export and direct access to the logs folder.
-- Added About dialog with GitHub release update checks.
-- Added settings/profile compatibility with exported JSON from the Windows version.
-- Expanded tests and re-verified Linux packaging, checksums, DEB install, RPM metadata, and standalone binary smoke under WSL.
+- Добавлен полноценный редактор штампа с профилями и ручным позиционированием.
+- Добавлена проверка PDF, `.sig`, `.p7s` с экспортом отчетов.
+- Добавлена диагностика CryptoPro и окно "О приложении".
+- Добавлен совместимый import/export JSON-настроек и профилей.
+- Перепроверены Linux-артефакты и checksums.
 
 ## v0.1.0
 
-- Initial Python implementation from scratch.
-- Added native Python/Qt desktop UI.
-- Added CryptoPro tool discovery and diagnostics.
-- Added certificate parsing through `certmgr`.
-- Added visible PDF stamp with pypdf/reportlab.
-- Added smart stamp placement based on text rectangles.
-- Added detached `.sig` signing through `csptest`.
-- Added embedded PDF signing path through `cryptcp`.
-- Added settings export/import.
-- Added DEB/RPM packaging and GitHub Actions release artifacts.
+- Первый публичный релиз Python/Qt-версии для Linux.
