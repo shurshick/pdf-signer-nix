@@ -58,8 +58,26 @@ def discover_tools() -> ToolPaths:
     return ToolPaths(certmgr=find_tool("certmgr"), csptest=find_tool("csptest"), cryptcp=find_tool("cryptcp"))
 
 
-def run_command(args: list[str], timeout: int = 120) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, text=True, capture_output=True, timeout=timeout, check=False)
+def run_command(args: list[str], timeout: int = 120) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(args, text=False, capture_output=True, timeout=timeout, check=False)
+
+
+def decode_tool_output(data: bytes | str | None) -> str:
+    if data is None:
+        return ""
+    if isinstance(data, str):
+        return data
+    for encoding in ("utf-8", "cp1251", "cp866"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def tool_output(proc: subprocess.CompletedProcess[bytes]) -> str:
+    parts = [decode_tool_output(part).strip() for part in (proc.stdout, proc.stderr) if part]
+    return "\n".join(part for part in parts if part)
 
 
 def list_certificates(tools: ToolPaths | None = None) -> list[Certificate]:
@@ -71,11 +89,13 @@ def list_certificates(tools: ToolPaths | None = None) -> list[Certificate]:
     errors: list[str] = []
     for store in ("uMy", "mMy"):
         proc = run_command([str(tools.certmgr), "-list", "-store", store])
-        if proc.returncode != 0:
-            errors.append(f"{store}: {(proc.stderr or proc.stdout or 'certmgr failed').strip()}")
+        output = tool_output(proc)
+        parsed = parse_certmgr_output(output)
+        if parsed:
+            certificates.extend(parsed)
             continue
-        output = "\n".join(part.strip() for part in (proc.stdout, proc.stderr) if part and part.strip())
-        certificates.extend(parse_certmgr_output(output))
+        if proc.returncode != 0:
+            errors.append(f"{store}: {output or 'certmgr failed'}")
 
     if certificates:
         return dedupe_certificates(certificates)
@@ -122,27 +142,36 @@ def parse_certmgr_output(text: str) -> list[Certificate]:
 def parse_cert_block(lines: list[str]) -> Certificate:
     cert = Certificate()
     for line in lines:
+        if line.startswith("#"):
+            continue
         key, value = split_field(line)
-        normalized = key.lower()
-        if normalized in ("subject", "субъект"):
+        normalized = normalize_field_name(key)
+        if normalized.startswith(("certificate chain", "цепочка сертификатов")):
+            break
+        if normalized.startswith(("subject", "субъект")) and not cert.subject:
             cert.subject = value
-        elif normalized in ("issuer", "издатель"):
+        elif normalized.startswith(("issuer", "издатель")) and not cert.issuer:
             cert.issuer = value
-        elif normalized in ("serial number", "серийный номер"):
+        elif normalized.startswith(("serial number", "серийный номер")) and not cert.serial:
             cert.serial = value.replace(" ", "")
-        elif "sha1" in normalized:
+        elif ("sha1" in normalized or "отпечат" in normalized) and not cert.thumbprint:
             cert.thumbprint = value.replace(" ", "").upper()
-        elif normalized in ("container", "контейнер"):
+        elif normalized.startswith(("container", "контейнер")) and not cert.container:
             cert.container = value
-        elif normalized in ("provider name", "имя провайдера"):
+        elif normalized.startswith(("provider name", "имя провайдера")) and not cert.provider:
             cert.provider = value
-        elif normalized in ("not valid before", "notbefore", "действителен с"):
+        elif normalized.startswith(("not valid before", "notbefore", "действителен с", "выдан")) and not cert.not_before:
             cert.not_before = value
-        elif normalized in ("not valid after", "notafter", "действителен до"):
+        elif normalized.startswith(("not valid after", "notafter", "действителен до", "истекает")) and not cert.not_after:
             cert.not_after = value
-        elif "private key" in normalized or "закрыт" in normalized:
-            cert.has_private_key = "not" not in value.lower() and "нет" not in value.lower()
+        elif normalized.startswith(("private key link", "private key", "ссылка на ключ")):
+            lowered = value.lower()
+            cert.has_private_key = lowered not in {"", "нет", "no", "not found", "absent"}
     return cert
+
+
+def normalize_field_name(key: str) -> str:
+    return " ".join(key.strip().lower().replace("ё", "е").split())
 
 
 def split_field(line: str) -> tuple[str, str]:
@@ -219,11 +248,11 @@ def verify_signature(target: Path, content: Path | None = None, tools: ToolPaths
         args.extend(["-content", str(content)])
     proc = run_command(args, timeout=120)
     ok = proc.returncode == 0
-    return ok, (proc.stdout or proc.stderr).strip()
+    return ok, tool_output(proc)
 
 
-def format_tool_error(prefix: str, proc: subprocess.CompletedProcess[str]) -> str:
-    body = (proc.stderr or proc.stdout or "").strip()
+def format_tool_error(prefix: str, proc: subprocess.CompletedProcess[bytes]) -> str:
+    body = tool_output(proc)
     if body:
         return f"{prefix}: {body}"
     return f"{prefix}: код возврата {proc.returncode}"

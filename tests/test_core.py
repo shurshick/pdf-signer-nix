@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from reportlab.pdfgen import canvas
 
-from pdf_signer_nix.crypto import parse_certmgr_output
+from pdf_signer_nix.crypto import ToolPaths, list_certificates, parse_certmgr_output
 from pdf_signer_nix.diagnostics import DiagnosticItem, format_diagnostics_report
 from pdf_signer_nix.models import Certificate, StampSettings
 from pdf_signer_nix.pdf_tools import Rect, rect_for_position, selected_pages, stamp_lines, stamp_pdf
@@ -27,6 +28,56 @@ Container: HDIMAGE\\abc
     assert len(certs) == 1
     assert certs[0].owner == "Ivan Ivanov"
     assert certs[0].organization == "Org"
+    assert certs[0].thumbprint == "AABBCC"
+
+
+def test_parse_certmgr_output_linux_russian_sample():
+    certs = parse_certmgr_output(
+        """
+Издатель            : ИНН ЮЛ=7707329152, E=uc@tax.gov.ru, O=Федеральная налоговая служба, CN=Федеральная налоговая служба
+Субъект             : ОГРНИП=309236005500091, СНИЛС=04954357489, ИНН=232601478079, E=shurshick@bk.ru, C=RU, CN=Коваленко Александр Сергеевич, G=Александр Сергеевич, SN=Коваленко
+Серийный номер      : 0x02A2174601F2B2218244CDB0E1ACB80D61
+SHA1 отпечаток      : 63e689eb0b00f7b29328e77d6ef5918d04b1b381
+Контейнер           : HDIMAGE\\\\356E6659.002\\CA83
+Имя провайдера      : Crypto-Pro GOST R 34.10-2012 KC1 CSP
+Выдан               : 04/06/2025 19:37:16 UTC
+Истекает            : 04/09/2026 19:47:16 UTC
+Ссылка на ключ      : Есть
+Цепочка сертификатов: Успешно проверена.
+#0:
+  Издатель          : Минцифры России
+#1:
+  Субъект           : Федеральная налоговая служба
+"""
+    )
+    assert len(certs) == 1
+    cert = certs[0]
+    assert cert.owner == "Коваленко Александр Сергеевич"
+    assert cert.issuer.startswith("ИНН ЮЛ=7707329152")
+    assert cert.serial == "0x02A2174601F2B2218244CDB0E1ACB80D61"
+    assert cert.thumbprint == "63E689EB0B00F7B29328E77D6EF5918D04B1B381"
+    assert cert.container == r"HDIMAGE\\356E6659.002\CA83"
+    assert cert.provider == "Crypto-Pro GOST R 34.10-2012 KC1 CSP"
+    assert cert.not_before == "04/06/2025 19:37:16 UTC"
+    assert cert.not_after == "04/09/2026 19:47:16 UTC"
+    assert cert.has_private_key is True
+
+
+def test_list_certificates_parses_cp1251_stderr(monkeypatch):
+    sample = """
+Субъект             : CN=Коваленко Александр Сергеевич
+Издатель            : CN=Федеральная налоговая служба
+Серийный номер      : 0x1234
+SHA1 отпечаток      : aa bb cc
+""".strip()
+
+    def fake_run_command(args: list[str], timeout: int = 120):
+        return subprocess.CompletedProcess(args=args, returncode=1, stdout=b"", stderr=sample.encode("cp1251"))
+
+    monkeypatch.setattr("pdf_signer_nix.crypto.run_command", fake_run_command)
+    certs = list_certificates(ToolPaths(certmgr=Path("/usr/bin/certmgr"), csptest=None, cryptcp=None))
+    assert len(certs) == 1
+    assert certs[0].owner == "Коваленко Александр Сергеевич"
     assert certs[0].thumbprint == "AABBCC"
 
 
