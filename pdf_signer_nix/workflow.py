@@ -3,15 +3,17 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from .crypto import sign_detached, sign_embedded_pdf, verify_signature
+from .crypto import sign_detached, sign_embedded_pdf
 from .models import SigningJob, SigningResult
 from .pdf_tools import stamp_pdf
+from .verification import verify_file
 
 LOG = logging.getLogger(__name__)
 
 
 def run_signing_job(job: SigningJob) -> list[SigningResult]:
     results: list[SigningResult] = []
+    job.stamp.normalize()
     for source in job.pdf_paths:
         output_dir = source.parent if job.save_next_to_source else job.output_dir
         stamped = unique_path(output_dir / f"{source.stem}-signed.pdf")
@@ -30,10 +32,13 @@ def run_signing_job(job: SigningJob) -> list[SigningResult]:
             stamped = embedded_target
             embedded = True
         verified = None
+        message = ""
         if job.verify_after_signing:
             target = signature_path or stamped
-            verified, _ = verify_signature(target, stamped if signature_path else None)
-        results.append(SigningResult(source, stamped, signature_path, embedded, verified))
+            report = verify_file(target)
+            verified = report.status == "VALID"
+            message = report.status_description
+        results.append(SigningResult(source, stamped, signature_path, embedded, verified, message))
     return results
 
 

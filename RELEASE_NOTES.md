@@ -1,27 +1,25 @@
 # Release Notes
 
-## v0.1.0
+## v0.2.0
 
-Первый релиз нового проекта `pdf-signer-nix`.
+Linux-версия `pdf-signer-nix` стала нормальным desktop-портом по ключевым пользовательским сценариям Windows-версии.
 
 ### Русский
 
-- Новый Python-проект без переноса старого Go/Fyne-кода.
-- Обычное desktop-приложение на Python/Qt.
-- Подписание PDF через CryptoPro CSP tools.
-- Открепленные `.sig` подписи.
-- Видимый синий прозрачный штамп.
-- Smart placement штампа.
-- Диагностика CryptoPro.
-- DEB/RPM пакеты со standalone-бинарником.
+- Добавлен полноценный редактор штампа с профилями `ГОСТ минимальный`, `ГОСТ стандартный`, `ГОСТ подробный` и `Custom`.
+- Добавлены ручные координаты X/Y, drag штампа по preview, сброс позиции, логотип и свой текст.
+- Добавлено отдельное окно проверки подписи для PDF, `.sig`, `.p7s` с копированием и экспортом TXT/HTML-отчётов.
+- Добавлено отдельное окно диагностики с сохранением отчёта и переходом к логам.
+- Добавлено окно `О приложении` с проверкой новых релизов на GitHub.
+- Добавлен совместимый import/export JSON настроек и профилей с Windows-версией.
+- Перепроверены Linux-артефакты: standalone binary, `.deb`, `.rpm`, `SHA256SUMS`.
 
 ### English
 
-- New Python project, not a port of the old Go/Fyne prototype.
-- Native desktop application with Python/Qt.
-- PDF signing through CryptoPro CSP tools.
-- Detached `.sig` signatures.
-- Visible blue transparent stamp.
-- Smart stamp placement.
-- CryptoPro diagnostics.
-- DEB/RPM packages with a standalone executable.
+- Added a full stamp editor with built-in `GOST minimal`, `GOST standard`, `GOST detailed`, and `Custom` profiles.
+- Added manual X/Y coordinates, preview drag, reset position, logo support, and custom text.
+- Added a dedicated signature verification window for PDF, `.sig`, and `.p7s` with copyable TXT/HTML reports.
+- Added a dedicated diagnostics window with report export and direct access to logs.
+- Added an About dialog with GitHub release update checks.
+- Added JSON settings/profile compatibility with exports from the Windows version.
+- Re-verified Linux artifacts: standalone binary, `.deb`, `.rpm`, and `SHA256SUMS`.

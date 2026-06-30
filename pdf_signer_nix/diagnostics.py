@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from .crypto import CryptoProError, discover_tools, list_certificates
+from .paths import log_dir
+from .update_service import get_current_version_text
 
 
 @dataclass(slots=True)
@@ -31,6 +33,19 @@ def run_diagnostics() -> list[DiagnosticItem]:
 
 def diagnostics_json() -> list[dict]:
     return [asdict(item) for item in run_diagnostics()]
+
+
+def format_diagnostics_report(items: list[DiagnosticItem] | None = None) -> str:
+    rows = items or run_diagnostics()
+    lines = [
+        "PDF Signer Nix diagnostics",
+        f"Version: {get_current_version_text()}",
+        f"Logs: {log_dir() / 'app.log'}",
+        "",
+    ]
+    for item in rows:
+        lines.append(f"{item.status}: {item.title}: {item.message}")
+    return "\n".join(lines)
 
 
 def tool_item(name: str, path, warning_if_missing: bool = False) -> DiagnosticItem:

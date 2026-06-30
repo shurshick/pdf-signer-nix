@@ -8,6 +8,7 @@ from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.colors import Color
 from reportlab.lib.pagesizes import portrait
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 from .models import Certificate, StampSettings
@@ -35,7 +36,20 @@ class Rect:
         return self.x < other.right and self.right > other.x and self.y < other.top and self.top > other.y
 
 
+@dataclass(slots=True)
+class StampLayoutResult:
+    font_size: float
+    wrapped_lines: list[str]
+    errors: list[str]
+    warnings: list[str]
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.errors
+
+
 def stamp_pdf(input_pdf: Path, output_pdf: Path, cert: Certificate, settings: StampSettings) -> Path:
+    settings = settings.clone().normalize()
     reader = PdfReader(str(input_pdf))
     writer = PdfWriter()
     page_indexes = selected_pages(len(reader.pages), settings)
@@ -65,8 +79,8 @@ def selected_pages(page_count: int, settings: StampSettings) -> set[int]:
 
 
 def choose_stamp_rect(page, page_width: float, page_height: float, settings: StampSettings) -> Rect:
-    width = settings.width_mm * POINTS_PER_MM
-    height = settings.height_mm * POINTS_PER_MM
+    width = settings.width_points
+    height = settings.height_points
     positions = ["bottom-right", "bottom-left", "top-right", "top-left"]
     if not settings.auto_place:
         return rect_for_position(settings.position, page_width, page_height, width, height, settings)
@@ -79,7 +93,7 @@ def choose_stamp_rect(page, page_width: float, page_height: float, settings: Sta
 
 
 def rect_for_position(position: str, page_width: float, page_height: float, width: float, height: float, settings: StampSettings) -> Rect:
-    margin = 36.0
+    margin = settings.margin
     if position == "bottom-left":
         x, y = margin, margin
     elif position == "top-left":
@@ -122,47 +136,144 @@ def make_overlay(page_width: float, page_height: float, rect: Rect, cert: Certif
     c.setStrokeColor(STAMP_BLUE)
     c.setFillColor(STAMP_BLUE)
     c.roundRect(rect.x, rect.y, rect.width, rect.height, 4, stroke=1, fill=0)
-    draw_logo(c, rect, settings)
-    text_x = rect.x + 8
+
+    text_left = rect.x + 8
     if settings.logo_path:
-        text_x += min(42, rect.width * 0.22)
-    y = rect.top - 14
-    c.setFont("Helvetica", 7)
-    for line in stamp_lines(cert, settings):
-        c.drawString(text_x, y, line[:120])
-        y -= 9
-        if y < rect.y + 6:
+        logo_width = min(42, rect.width * 0.22) * settings.logo_scale
+        draw_logo(c, rect, settings, logo_width)
+        text_left += min(logo_width + 8, rect.width * 0.28)
+
+    layout = validate_stamp_layout(settings, cert, max_width=rect.width - (text_left - rect.x) - 8)
+    y = rect.top - 11
+    line_height = max(layout.font_size + 1.4, layout.font_size * 1.22)
+    c.setFont("Helvetica", layout.font_size)
+    for line in layout.wrapped_lines:
+        c.drawString(text_left, y, line[:180])
+        y -= line_height
+        if y < rect.y + 5:
             break
+
     c.save()
     packet.seek(0)
     return packet
 
 
-def draw_logo(c: canvas.Canvas, rect: Rect, settings: StampSettings) -> None:
+def draw_logo(c: canvas.Canvas, rect: Rect, settings: StampSettings, size: float | None = None) -> None:
     if not settings.logo_path:
         return
     path = Path(settings.logo_path)
     if not path.exists() or path.stat().st_size > 1024 * 1024:
         return
-    size = min(36, rect.height - 12) * max(0.1, min(settings.logo_scale, 3.0))
+    size = size or min(36, rect.height - 12) * settings.logo_scale
     try:
         c.drawImage(str(path), rect.x + 6, rect.top - size - 6, width=size, height=size, preserveAspectRatio=True, mask="auto")
     except Exception:
         return
 
 
-def stamp_lines(cert: Certificate, settings: StampSettings) -> list[str]:
+def validate_stamp_layout(settings: StampSettings, cert: Certificate | None = None, *, max_width: float | None = None) -> StampLayoutResult:
+    settings = settings.clone().normalize()
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if settings.width_mm < 60 or settings.height_mm < 20:
+        errors.append("Размер штампа не может быть меньше 60x20 мм.")
+    if settings.min_font_size < 6 or settings.font_size < 6:
+        errors.append("Размер шрифта не может быть меньше 6 pt.")
+
+    inner_width = max_width if max_width is not None else settings.width_points - 12
+    inner_height = settings.height_points - 10
+    font_size = settings.font_size
+    wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size)
+    while font_size > settings.min_font_size and not text_fits(wrapped, inner_height, font_size):
+        font_size -= 0.5
+        wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size)
+
+    if not text_fits(wrapped, inner_height, font_size):
+        warnings.append("Текст штампа не помещается. Увеличьте размер или отключите часть полей.")
+    if settings.opacity < 0.55:
+        warnings.append("Прозрачность может быть слишком высокой для читаемости.")
+    if settings.logo_path:
+        logo = Path(settings.logo_path)
+        if not logo.exists():
+            warnings.append("Файл логотипа не найден.")
+        elif logo.stat().st_size > 1024 * 1024:
+            warnings.append("Логотип больше 1 МБ и будет проигнорирован.")
+
+    return StampLayoutResult(font_size=font_size, wrapped_lines=wrapped, errors=errors, warnings=warnings)
+
+
+def stamp_lines(cert: Certificate, settings: StampSettings, sign_time: datetime | None = None) -> list[str]:
+    now = sign_time or datetime.now()
     lines = ["Документ подписан электронной подписью"]
-    if settings.include_owner:
-        lines.append(f"Владелец: {cert.owner or '-'}")
-    if settings.include_issuer:
-        lines.append(f"Издатель: {cert.issuer or '-'}")
-    if settings.include_serial:
-        lines.append(f"Серийный номер: {cert.serial or '-'}")
+
+    serial = cert.serial or "-"
+    lines.append(f"Сертификат: {serial}")
+    lines.append(f"Владелец: {cert.owner or '-'}")
+    valid_from = _date_only(cert.not_before)
+    valid_to = _date_only(cert.not_after)
+    lines.append(f"Действителен: с {valid_from} по {valid_to}")
+
+    if settings.include_signing_date_time:
+        lines.append(f"Подписано: {now.strftime('%d.%m.%Y %H:%M:%S')}")
+    if settings.include_organization and cert.organization:
+        lines.append(f"Организация: {cert.organization}")
+    if settings.include_position and cert.position:
+        lines.append(f"Должность: {cert.position}")
+    if settings.include_inn and cert.inn:
+        lines.append(f"ИНН: {cert.inn}")
+    if settings.include_snils and cert.snils:
+        lines.append(f"СНИЛС: {cert.snils}")
     if settings.include_thumbprint:
-        lines.append(f"SHA1: {cert.thumbprint or '-'}")
-    if settings.include_reason:
-        lines.append(f"Назначение: {settings.reason}")
+        lines.append(f"Отпечаток: {format_hash(cert.thumbprint)}")
+    if settings.include_issuer and cert.issuer:
+        lines.append(f"Издатель: {cert.issuer}")
+    if settings.include_reason and settings.reason:
+        lines.append(f"Причина: {settings.reason}")
     if settings.include_date:
-        lines.append(f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
+        template = "%d.%m.%Y %H:%M:%S" if settings.include_time else "%d.%m.%Y"
+        lines.append(f"Дата: {now.strftime(template)}")
+    if settings.include_custom_text and settings.custom_text:
+        lines.extend(line.strip() for line in settings.custom_text.splitlines() if line.strip())
     return lines
+
+
+def wrap_stamp_lines(lines: list[str], max_width: float, font_size: float, font_name: str = "Helvetica") -> list[str]:
+    wrapped: list[str] = []
+    for line in lines:
+        text = line.strip()
+        if not text:
+            continue
+        words = text.split()
+        current = words[0]
+        for word in words[1:]:
+            candidate = f"{current} {word}"
+            if stringWidth(candidate, font_name, font_size) <= max_width:
+                current = candidate
+            else:
+                wrapped.append(current)
+                current = word
+        while stringWidth(current, font_name, font_size) > max_width and len(current) > 1:
+            split = max(1, int(len(current) * max_width / max(stringWidth(current, font_name, font_size), 1)))
+            wrapped.append(current[:split].rstrip())
+            current = current[split:].lstrip()
+        wrapped.append(current)
+    return wrapped
+
+
+def text_fits(lines: list[str], height_points: float, font_size: float) -> bool:
+    line_height = max(font_size + 1.4, font_size * 1.22)
+    return len(lines) * line_height <= height_points
+
+
+def format_hash(hash_value: str) -> str:
+    normalized = (hash_value or "").replace(" ", "").upper()
+    if len(normalized) <= 16:
+        return normalized
+    return normalized[:16] + "..." + normalized[-8:]
+
+
+def _date_only(value: str) -> str:
+    if not value:
+        return "-"
+    return value.split()[0]
