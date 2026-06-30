@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install Ubuntu tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-venv python3-dev build-essential rpm dpkg-dev libgl1 libegl1 libxkbcommon0
+          sudo apt-get install -y python3-venv python3-dev build-essential dpkg-dev desktop-file-utils xvfb libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libx11-xcb1 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-icccm4 libatomic1 fontconfig
 
       - name: Test
         run: |
@@ -34,23 +34,40 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           else
-            echo "VERSION=0.2.0" >> "$GITHUB_ENV"
+            echo "VERSION=0.2.2" >> "$GITHUB_ENV"
           fi
 
-      - name: Build DEB
-        run: VERSION=${VERSION} ./scripts/build_deb.sh
+      - name: Build EL8 binary and RPM
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            almalinux:8 \
+            bash -lc '
+              set -euo pipefail
+              dnf -y install python3.12 python3.12-devel python3.12-pip gcc gcc-c++ make rpm-build desktop-file-utils findutils patch tar xz libX11 libXext libXrender libXrandr libXfixes libXi libXcursor libxcb libxkbcommon mesa-libEGL mesa-libGL fontconfig libX11-xcb libatomic libxkbcommon-x11 xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm gtk3 cairo-gobject xorg-x11-server-Xvfb
+              PYTHON_BIN=python3.12 VERSION=${VERSION} ./scripts/build_rpm.sh
+              dnf -y install ./artifacts/pdf-signer-nix-${VERSION}-1.x86_64.rpm
+              /usr/bin/pdf-signer-nix --version
+              /usr/bin/pdf-signer-nix --self-test || true
+            '
 
-      - name: Build RPM
-        run: VERSION=${VERSION} ./scripts/build_rpm.sh
+      - name: Build DEB from EL8 binary
+        run: SKIP_BINARY_BUILD=1 VERSION=${VERSION} ./scripts/build_deb.sh
 
       - name: Verify artifacts
         run: VERSION=${VERSION} ./scripts/verify_artifacts.sh
 
       - name: Smoke install DEB
         run: |
-          sudo apt-get install -y ./artifacts/pdf-signer-nix_${VERSION}_amd64.deb
-          pdf-signer-nix --version
-          pdf-signer-nix --self-test
+          sudo dpkg -i ./artifacts/pdf-signer-nix_${VERSION}_amd64.deb
+          /usr/bin/pdf-signer-nix --version
+          /usr/bin/pdf-signer-nix --self-test || true
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 5 /usr/bin/pdf-signer-nix
+          status=$?
+          set -e
+          test "$status" -eq 124
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

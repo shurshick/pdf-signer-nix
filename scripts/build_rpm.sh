@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.1}"
+VERSION="${VERSION:-0.2.2}"
 RELEASE="${RELEASE:-1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RPMROOT="$(mktemp -d)"
@@ -18,13 +18,20 @@ cp -f "${ROOT_DIR}/README.md" "${RPMROOT}/SOURCES/"
 cat > "${RPMROOT}/SPECS/pdf-signer-nix.spec" <<EOF
 Name:           pdf-signer-nix
 Version:        ${VERSION}
-Release:        ${RELEASE}%{?dist}
+Release:        ${RELEASE}
 Summary:        PDF signing and visible stamp tool for Linux with CryptoPro CSP
 License:        AGPL-3.0-or-later
 URL:            https://github.com/shurshick/pdf-signer-nix
 BuildArch:      x86_64
 Requires:       mesa-libEGL
 Requires:       libxkbcommon
+Requires:       libxkbcommon-x11
+Requires:       libX11-xcb
+Requires:       xcb-util-image
+Requires:       xcb-util-keysyms
+Requires:       xcb-util-renderutil
+Requires:       xcb-util-wm
+Requires:       libatomic
 Requires:       fontconfig
 
 %description

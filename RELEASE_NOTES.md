@@ -1,5 +1,21 @@
 # Release Notes
 
+## v0.2.2
+
+Patch release with EL8 compatibility fixes.
+
+### Русский
+
+- Linux-артефакты пересобраны на EL8-совместимой базе, чтобы RPM запускался на RedOS 8 и других системах с glibc 2.28.
+- `PySide6` зафиксирован на ветке `6.8.x`, совместимой с EL8.
+- Сборочные скрипты теперь принимают `PYTHON_BIN`, чтобы релиз можно было собирать на системном `python3.12` в AlmaLinux 8.
+
+### English
+
+- Rebuilt Linux artifacts on an EL8-compatible base so the RPM starts on RedOS 8 and other glibc 2.28 systems.
+- Pinned `PySide6` to the EL8-compatible `6.8.x` branch.
+- Build scripts now accept `PYTHON_BIN` so releases can be built with the system `python3.12` on AlmaLinux 8.
+
 ## v0.2.1
 
 Patch release with packaging fixes.

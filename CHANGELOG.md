@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.2
+
+- Rebuilt Linux artifacts on an EL8-compatible base to restore runtime compatibility with RedOS 8 and other glibc 2.28 systems.
+- Pinned PySide6 to the EL8-compatible 6.8 branch and made the build scripts accept a custom Python binary.
+
 ## v0.2.1
 
 - Fixed RPM packaging so the app no longer hard-requires CryptoPro binaries at install time.
