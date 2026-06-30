@@ -4,11 +4,11 @@ set -euo pipefail
 VERSION="${VERSION:-0.1.0}"
 ARCH="${DEB_ARCH:-amd64}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILDROOT="${ROOT_DIR}/build/debroot"
+BUILDROOT="$(mktemp -d)"
 ARTIFACTS="${ROOT_DIR}/artifacts"
+trap 'rm -rf "${BUILDROOT}"' EXIT
 
 "${ROOT_DIR}/scripts/build_binary.sh"
-rm -rf "${BUILDROOT}"
 mkdir -p \
   "${BUILDROOT}/DEBIAN" \
   "${BUILDROOT}/usr/bin" \
@@ -30,7 +30,7 @@ Architecture: ${ARCH}
 Maintainer: shurshick <noreply@example.com>
 Homepage: https://github.com/shurshick/pdf-signer-nix
 Description: PDF signing and visible stamp tool for Linux with CryptoPro CSP
- PDF Signer Nix is a local desktop/web application for signing PDF files
+ PDF Signer Nix is a local desktop application for signing PDF files
  through CryptoPro CSP tools and adding a visible signature stamp.
  CryptoPro CSP is required at runtime and is not bundled.
 EOF

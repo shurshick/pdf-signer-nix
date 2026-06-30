@@ -4,11 +4,11 @@ set -euo pipefail
 VERSION="${VERSION:-0.1.0}"
 RELEASE="${RELEASE:-1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RPMROOT="${ROOT_DIR}/build/rpmbuild"
+RPMROOT="$(mktemp -d)"
 ARTIFACTS="${ROOT_DIR}/artifacts"
+trap 'rm -rf "${RPMROOT}"' EXIT
 
 "${ROOT_DIR}/scripts/build_binary.sh"
-rm -rf "${RPMROOT}"
 mkdir -p "${RPMROOT}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 cp -f "${ARTIFACTS}/pdf-signer-nix" "${RPMROOT}/SOURCES/"
 cp -f "${ROOT_DIR}/packaging/pdf-signer-nix.desktop" "${RPMROOT}/SOURCES/"
@@ -26,7 +26,7 @@ BuildArch:      x86_64
 Requires:       /opt/cprocsp/bin/amd64/certmgr
 
 %description
-PDF Signer Nix is a local desktop/web application for signing PDF files
+PDF Signer Nix is a local desktop application for signing PDF files
 through CryptoPro CSP tools and adding a visible signature stamp.
 
 %prep
