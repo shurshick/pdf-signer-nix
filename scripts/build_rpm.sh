@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.0}"
+VERSION="${VERSION:-0.2.1}"
 RELEASE="${RELEASE:-1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RPMROOT="$(mktemp -d)"
@@ -12,7 +12,7 @@ trap 'rm -rf "${RPMROOT}"' EXIT
 mkdir -p "${RPMROOT}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 cp -f "${ARTIFACTS}/pdf-signer-nix" "${RPMROOT}/SOURCES/"
 cp -f "${ROOT_DIR}/packaging/pdf-signer-nix.desktop" "${RPMROOT}/SOURCES/"
-cp -f "${ROOT_DIR}/assets/pdf-signer-nix.svg" "${RPMROOT}/SOURCES/"
+cp -f "${ROOT_DIR}/assets/pdf-signer-nix.png" "${RPMROOT}/SOURCES/"
 cp -f "${ROOT_DIR}/README.md" "${RPMROOT}/SOURCES/"
 
 cat > "${RPMROOT}/SPECS/pdf-signer-nix.spec" <<EOF
@@ -23,7 +23,9 @@ Summary:        PDF signing and visible stamp tool for Linux with CryptoPro CSP
 License:        AGPL-3.0-or-later
 URL:            https://github.com/shurshick/pdf-signer-nix
 BuildArch:      x86_64
-Requires:       /opt/cprocsp/bin/amd64/certmgr
+Requires:       mesa-libEGL
+Requires:       libxkbcommon
+Requires:       fontconfig
 
 %description
 PDF Signer Nix is a local desktop application for signing PDF files
@@ -36,13 +38,13 @@ through CryptoPro CSP tools and adding a visible signature stamp.
 %install
 install -D -m 0755 %{_sourcedir}/pdf-signer-nix %{buildroot}/usr/bin/pdf-signer-nix
 install -D -m 0644 %{_sourcedir}/pdf-signer-nix.desktop %{buildroot}/usr/share/applications/pdf-signer-nix.desktop
-install -D -m 0644 %{_sourcedir}/pdf-signer-nix.svg %{buildroot}/usr/share/icons/hicolor/scalable/apps/pdf-signer-nix.svg
+install -D -m 0644 %{_sourcedir}/pdf-signer-nix.png %{buildroot}/usr/share/icons/hicolor/512x512/apps/pdf-signer-nix.png
 install -D -m 0644 %{_sourcedir}/README.md %{buildroot}/usr/share/doc/pdf-signer-nix/README.md
 
 %files
 /usr/bin/pdf-signer-nix
 /usr/share/applications/pdf-signer-nix.desktop
-/usr/share/icons/hicolor/scalable/apps/pdf-signer-nix.svg
+/usr/share/icons/hicolor/512x512/apps/pdf-signer-nix.png
 /usr/share/doc/pdf-signer-nix/README.md
 
 %changelog

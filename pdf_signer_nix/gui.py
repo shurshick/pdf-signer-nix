@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QThread, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QKeyEvent, QMouseEvent, QPainter, QPen
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QKeyEvent, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -43,7 +43,7 @@ from . import __version__
 from .crypto import CryptoProError, list_certificates
 from .diagnostics import format_diagnostics_report, run_diagnostics
 from .models import Certificate, SigningJob, StampSettings, VerificationReport, builtin_stamp_settings
-from .paths import log_dir
+from .paths import asset_path, installed_icon_path, log_dir
 from .pdf_tools import Rect, stamp_lines, validate_stamp_layout
 from .settings import (
     default_settings,
@@ -737,10 +737,17 @@ class MainWindow(QMainWindow):
         self.certificates: list[Certificate] = []
         self.worker: SigningThread | None = None
         self.setWindowTitle("PDF Signer Nix")
+        self.apply_window_icon()
         self.resize(1120, 820)
         self._build_ui()
         self._load_settings_to_controls()
         self.refresh_certificates()
+
+    def apply_window_icon(self) -> None:
+        for path in (asset_path("pdf-signer-nix.png"), installed_icon_path()):
+            if path.exists():
+                self.setWindowIcon(QIcon(str(path)))
+                return
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -1092,6 +1099,10 @@ def format_bytes(value: int) -> str:
 def run_gui() -> int:
     app = QApplication([])
     app.setApplicationName("PDF Signer Nix")
+    for path in (asset_path("pdf-signer-nix.png"), installed_icon_path()):
+        if path.exists():
+            app.setWindowIcon(QIcon(str(path)))
+            break
     window = MainWindow()
     window.show()
     return app.exec()

@@ -1,5 +1,21 @@
 # Release Notes
 
+## v0.2.1
+
+Patch release with packaging fixes.
+
+### Русский
+
+- Исправлена RPM-упаковка: пакет больше не требует бинарники CryptoPro на этапе установки.
+- В DEB и RPM добавлены системные зависимости для Qt/EGL, чтобы установленное приложение запускалось на чистой системе.
+- В проект и пакеты добавлена нормальная PNG-иконка из Windows-версии с прозрачным фоном.
+
+### English
+
+- Fixed RPM packaging so the package no longer requires CryptoPro binaries during installation.
+- Added Qt/EGL runtime dependencies to DEB and RPM packages so the installed app starts on clean systems.
+- Replaced the project icon with the Windows version PNG icon with a transparent background.
+
 ## v0.2.0
 
 Linux-версия `pdf-signer-nix` стала нормальным desktop-портом по ключевым пользовательским сценариям Windows-версии.

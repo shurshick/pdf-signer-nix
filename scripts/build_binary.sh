@@ -12,6 +12,7 @@ pyinstaller \
   --clean \
   --onefile \
   --name pdf-signer-nix \
+  --add-data "assets/pdf-signer-nix.png:assets" \
   launcher.py
 
 mkdir -p artifacts

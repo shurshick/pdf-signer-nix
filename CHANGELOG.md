@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+- Fixed RPM packaging so the app no longer hard-requires CryptoPro binaries at install time.
+- Added Linux GUI runtime dependencies to DEB/RPM packages so the installed app starts on clean systems.
+- Switched the application icon to the Windows project icon with a transparent PNG background.
+
 ## v0.2.0
 
 - Added a full stamp editor with built-in GOST profiles, custom profile save/load, manual coordinates, preview drag, logo scaling, and stamp field toggles.
