@@ -73,8 +73,8 @@ pytest
 Релиз публикует:
 
 - `pdf-signer-nix`;
-- `pdf-signer-nix_0.2.2_amd64.deb`;
-- `pdf-signer-nix-0.2.2-1.x86_64.rpm`;
+- `pdf-signer-nix_0.2.3_amd64.deb`;
+- `pdf-signer-nix-0.2.3-1.x86_64.rpm`;
 - `SHA256SUMS.txt`.
 
 ## English

@@ -25,7 +25,7 @@ def run_diagnostics() -> list[DiagnosticItem]:
         if certs:
             items.append(DiagnosticItem("OK", "Сертификаты", f"Найдено сертификатов: {len(certs)}"))
         else:
-            items.append(DiagnosticItem("WARNING", "Сертификаты", "Сертификаты в хранилище uMy не найдены."))
+            items.append(DiagnosticItem("WARNING", "Сертификаты", "Сертификаты в хранилищах uMy и mMy не найдены."))
     except CryptoProError as exc:
         items.append(DiagnosticItem("ERROR", "Сертификаты", str(exc)))
     return items

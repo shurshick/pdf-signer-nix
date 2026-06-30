@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+- Fixed CryptoPro certificate discovery to read both `uMy` and `mMy` stores on Linux.
+
 ## v0.2.2
 
 - Rebuilt Linux artifacts on an EL8-compatible base to restore runtime compatibility with RedOS 8 and other glibc 2.28 systems.

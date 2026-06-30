@@ -66,10 +66,37 @@ def list_certificates(tools: ToolPaths | None = None) -> list[Certificate]:
     tools = tools or discover_tools()
     if tools.certmgr is None:
         raise CryptoProError("certmgr не найден. Установите CryptoPro CSP или задайте PDF_SIGNER_NIX_CERTMGR.")
-    proc = run_command([str(tools.certmgr), "-list", "-store", "uMy"])
-    if proc.returncode != 0:
-        raise CryptoProError((proc.stderr or proc.stdout or "certmgr failed").strip())
-    return parse_certmgr_output(proc.stdout)
+
+    certificates: list[Certificate] = []
+    errors: list[str] = []
+    for store in ("uMy", "mMy"):
+        proc = run_command([str(tools.certmgr), "-list", "-store", store])
+        if proc.returncode != 0:
+            errors.append(f"{store}: {(proc.stderr or proc.stdout or 'certmgr failed').strip()}")
+            continue
+        certificates.extend(parse_certmgr_output(proc.stdout))
+
+    if certificates:
+        return dedupe_certificates(certificates)
+    if errors:
+        raise CryptoProError("\n".join(errors))
+    return []
+
+
+def dedupe_certificates(certificates: list[Certificate]) -> list[Certificate]:
+    unique: list[Certificate] = []
+    seen: set[tuple[str, str, str]] = set()
+    for cert in certificates:
+        key = (
+            cert.thumbprint.upper(),
+            cert.serial.upper(),
+            cert.subject.strip(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(cert)
+    return unique
 
 
 def parse_certmgr_output(text: str) -> list[Certificate]:

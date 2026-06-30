@@ -1,5 +1,17 @@
 # Release Notes
 
+## v0.2.3
+
+Patch release with CryptoPro certificate store fix.
+
+### Русский
+
+- Исправлен поиск сертификатов: приложение теперь читает хранилища `uMy` и `mMy`, а не только `uMy`.
+
+### English
+
+- Fixed certificate discovery: the app now reads both `uMy` and `mMy` CryptoPro stores instead of only `uMy`.
+
 ## v0.2.2
 
 Patch release with EL8 compatibility fixes.
