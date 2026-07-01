@@ -5,7 +5,7 @@ from pdf_signer_nix.app import main
 
 def test_version(capsys):
     assert main(["--version"]) == 0
-    assert "0.2.10" in capsys.readouterr().out
+    assert "0.2.11" in capsys.readouterr().out
 
 
 def test_self_test_without_cryptopro():

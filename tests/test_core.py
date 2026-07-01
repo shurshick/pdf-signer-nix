@@ -14,6 +14,7 @@ from pdf_signer_nix.crypto import (
     finalize_pdf_signature,
     find_tool,
     list_certificates,
+    normalize_cms_signature,
     parse_certmgr_output,
     prepare_pdf_signature_placeholder,
     verify_signature,
@@ -406,3 +407,8 @@ def test_verify_pdf_reports_warning_for_embedded_container_only(monkeypatch, tmp
     assert report.status == "WARNING"
     assert report.signature_exists is True
     assert report.signature_container_valid is True
+
+
+def test_normalize_cms_signature_returns_original_on_invalid_bytes():
+    raw = b"not-a-cms"
+    assert normalize_cms_signature(raw) == raw

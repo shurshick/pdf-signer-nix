@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from asn1crypto import cms as asn1cms
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign.fields import SigFieldSpec, SigSeedSubFilter
 from pyhanko.sign.signers.cms_embedder import PdfCMSEmbedder, SigIOSetup, SigObjSetup
@@ -354,7 +355,14 @@ def write_pdf_byte_range_payload(pdf_path: Path, payload_path: Path, start: int,
 
 def finalize_pdf_signature(pdf_path: Path, prepared, cms_bytes: bytes) -> None:
     with pdf_path.open("r+b") as output:
-        prepared.fill_with_cms(output, cms_bytes)
+        prepared.fill_with_cms(output, normalize_cms_signature(cms_bytes))
+
+
+def normalize_cms_signature(cms_bytes: bytes) -> bytes:
+    try:
+        return asn1cms.ContentInfo.load(cms_bytes).dump()
+    except Exception:
+        return cms_bytes
 
 
 def verify_signature(target: Path, content: Path | None = None, tools: ToolPaths | None = None) -> tuple[bool, str]:

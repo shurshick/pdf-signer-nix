@@ -1,19 +1,15 @@
-# PDF Signer Nix v0.2.10
+# PDF Signer Nix v0.2.11
 
-Исправлена логика выходных файлов и превью штампа.
+Исправлена подготовка встроенной PDF-подписи для внешних валидаторов.
 
 ## Что исправлено
 
-- Теперь всегда создаётся один итоговый PDF `*-signed.pdf`.
-- Лишний промежуточный файл `*-signed-embedded.pdf` больше не остаётся рядом с результатом.
-- Detached-режим работает как отдельный режим: итоговый PDF со штампом плюс `.sig`, без лишней встроенной подписи.
-- Исправлена рамка в предпросмотре редактора штампа.
+- Перед записью в `/Contents` встроенная CMS-подпись теперь нормализуется. Это убирает расхождения между detached-проверкой CryptoPro и проверкой встроенной PDF-подписи внешними средствами.
+- Логика режимов подписи из `v0.2.10` сохранена: встроенный режим создаёт один итоговый PDF, detached-режим создаёт `*-signed.pdf` и `.sig`.
 
 ## English
 
-Fixed output file logic and the stamp preview.
+Normalized the embedded CMS signature before writing it into the PDF signature container.
 
-- The app now always writes a single final `*-signed.pdf`.
-- The stray intermediate `*-signed-embedded.pdf` file is gone.
-- Detached mode now behaves as a real separate mode: stamped PDF plus `.sig`, without an extra embedded-signature attempt.
-- Fixed the stamp editor preview frame rendering.
+- This targets compatibility with stricter third-party PDF validators that accepted the detached signature but rejected the embedded PDF signature container.
+- The `v0.2.10` signing mode cleanup remains in place.
