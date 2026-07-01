@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pdf-signer-nix"
-version = "0.2.11"
+version = "0.2.13"
 description = "Linux desktop app for PDF signing and visible stamp with CryptoPro CSP"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "AGPL-3.0-or-later" }
-authors = [{ name = "shurshick" }]
+authors = [{ name = "Александр Коваленко", email = "shurshick@bk.ru" }]
 dependencies = [
   "PySide6>=6.8.3,<6.9",
   "pypdf>=4.3,<6",

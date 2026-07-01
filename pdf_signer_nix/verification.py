@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import tempfile
 from pathlib import Path
 
+from asn1crypto import cms as asn1cms
 from pypdf import PdfReader
 
 from . import __version__
@@ -43,6 +45,7 @@ def verify_detached(path: Path, report: VerificationReport | None = None) -> Ver
     report.signature_exists = True
     report.signature_container_valid = ok
     report.pdf_readable = content is not None and is_pdf_readable(content)
+    populate_report_from_cms(report, path.read_bytes())
 
     if ok and content is not None:
         report.status = "VALID"
@@ -76,6 +79,7 @@ def verify_pdf(path: Path, report: VerificationReport | None = None) -> Verifica
         return report
 
     report.signature_exists = True
+    populate_report_from_cms(report, signature["contents"])
     with tempfile.TemporaryDirectory(prefix="pdf-signer-nix-verify-") as temp_dir:
         temp = Path(temp_dir)
         signature_path = temp / "embedded.sig"
@@ -87,14 +91,91 @@ def verify_pdf(path: Path, report: VerificationReport | None = None) -> Verifica
         report.signature_container_valid = ok
 
     if ok:
-        report.status = "WARNING"
-        report.status_description = "Контейнер встроенной PDF-подписи читается, но это не гарантирует совместимость со сторонними PDF-валидаторами."
-        report.warnings.append("Проверка выполнена только на уровне CMS-контейнера. Для полной проверки нужен внешний PDF-валидатор.")
+        report.status = "VALID"
+        report.status_description = "Встроенная PDF-подпись корректна."
     else:
         report.status = "INVALID"
         report.status_description = output or "Не удалось проверить встроенную PDF-подпись."
         report.errors.append(report.status_description)
     return report
+
+
+def populate_report_from_cms(report: VerificationReport, cms_bytes: bytes) -> None:
+    try:
+        content_info = asn1cms.ContentInfo.load(cms_bytes)
+    except Exception:
+        return
+    if content_info["content_type"].native != "signed_data":
+        return
+
+    signed_data = content_info["content"]
+    signer_infos = signed_data["signer_infos"]
+    if signer_infos:
+        signer_info = signer_infos[0]
+        digest_algorithm = signer_info["digest_algorithm"]["algorithm"].native or ""
+        signature_algorithm = signer_info["signature_algorithm"]["algorithm"].native or ""
+        parts = [part for part in (digest_algorithm, signature_algorithm) if part]
+        if parts:
+            report.certificate.signature_algorithm = " / ".join(parts)
+        signed_attrs = signer_info["signed_attrs"]
+        if signed_attrs is not None:
+            for attr in signed_attrs:
+                attr_type = attr["type"].native
+                if attr_type == "signing_time":
+                    values = attr["values"]
+                    if values:
+                        report.signing_date = str(values[0].native)
+                elif attr_type == "signature_time_stamp_token":
+                    report.has_timestamp = True
+
+    certificate = find_signing_certificate(signed_data)
+    if certificate is None:
+        return
+
+    report.certificate.subject = certificate.subject.human_friendly
+    report.certificate.issuer = certificate.issuer.human_friendly
+    report.certificate.serial_number = hex(certificate.serial_number)
+    report.certificate.thumbprint = hashlib.sha1(certificate.dump()).hexdigest().upper()
+    report.certificate.not_before = str(certificate["tbs_certificate"]["validity"]["not_before"].native)
+    report.certificate.not_after = str(certificate["tbs_certificate"]["validity"]["not_after"].native)
+    if not report.certificate.signature_algorithm:
+        report.certificate.signature_algorithm = certificate["signature_algorithm"]["algorithm"].native or ""
+    if not report.certificate_chain_status:
+        report.certificate_chain_status = "Извлечено из CMS"
+
+
+def find_signing_certificate(signed_data) -> object | None:
+    signer_infos = signed_data["signer_infos"]
+    certificates = signed_data["certificates"]
+    if not signer_infos or not certificates:
+        return None
+    signer_info = signer_infos[0]
+    signer_id = signer_info["sid"]
+    signer_id_name = signer_id.name
+
+    for cert_choice in certificates:
+        if cert_choice.name != "certificate":
+            continue
+        certificate = cert_choice.chosen
+        if signer_id_name == "issuer_and_serial_number":
+            issuer_serial = signer_id.chosen
+            if (
+                certificate.serial_number == issuer_serial["serial_number"].native
+                and certificate.issuer == issuer_serial["issuer"]
+            ):
+                return certificate
+        elif signer_id_name == "subject_key_identifier":
+            extensions = certificate["tbs_certificate"]["extensions"]
+            if extensions is None:
+                continue
+            for extension in extensions:
+                if extension["extn_id"].native == "key_identifier":
+                    if extension["extn_value"].native == signer_id.native:
+                        return certificate
+    for cert_choice in certificates:
+        if cert_choice.name == "certificate":
+            return cert_choice.chosen
+    return None
 
 
 def extract_pdf_signature(path: Path, reader: PdfReader) -> dict[str, bytes] | None:

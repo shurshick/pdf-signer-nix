@@ -41,13 +41,13 @@ CryptoPro в пакет не входит.
 DEB:
 
 ```bash
-sudo dpkg -i pdf-signer-nix_0.2.11_amd64.deb
+sudo dpkg -i pdf-signer-nix_0.2.13_amd64.deb
 ```
 
 RPM:
 
 ```bash
-sudo rpm -i pdf-signer-nix-0.2.11-1.x86_64.rpm
+sudo rpm -i pdf-signer-nix-0.2.13-1.x86_64.rpm
 ```
 
 Запуск:

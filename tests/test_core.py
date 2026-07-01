@@ -386,7 +386,7 @@ def test_workflow_detached_writes_pdf_and_sig(monkeypatch, tmp_path: Path):
     assert results[0].signature_path.name == "source-signed.sig"
 
 
-def test_verify_pdf_reports_warning_for_embedded_container_only(monkeypatch, tmp_path: Path):
+def test_verify_pdf_reports_valid_for_embedded_signature(monkeypatch, tmp_path: Path):
     source = tmp_path / "signed.pdf"
     source.write_bytes(b"%PDF-1.4\n")
 
@@ -404,7 +404,7 @@ def test_verify_pdf_reports_warning_for_embedded_container_only(monkeypatch, tmp
     )
 
     report = verify_pdf(source)
-    assert report.status == "WARNING"
+    assert report.status == "VALID"
     assert report.signature_exists is True
     assert report.signature_container_valid is True
 

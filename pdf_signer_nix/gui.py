@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, QThread, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QKeyEvent, QMouseEvent, QPainter, QPen
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -674,24 +674,48 @@ class AboutDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("О приложении")
-        self.setFixedSize(460, 250)
+        self.setFixedSize(520, 280)
         self.worker: UpdateCheckThread | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        header = QHBoxLayout()
+        icon_label = QLabel()
+        icon_label.setFixedSize(96, 96)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        for path in (asset_path("pdf-signer-nix.png"), installed_icon_path()):
+            if path.exists():
+                pixmap = QPixmap(str(path))
+                if not pixmap.isNull():
+                    icon_label.setPixmap(
+                        pixmap.scaled(
+                            96,
+                            96,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                    )
+                    break
+        header.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignTop)
+
+        info_layout = QVBoxLayout()
         title = QLabel("PDF Signer Nix")
         title_font = title.font()
         title_font.setBold(True)
         title_font.setPointSize(title_font.pointSize() + 2)
         title.setFont(title_font)
-        layout.addWidget(title)
-        layout.addWidget(QLabel(f"Версия: {get_current_version_text()}"))
-        layout.addWidget(QLabel("Copyright (c) 2026 shurshick"))
+        info_layout.addWidget(title)
+        info_layout.addWidget(QLabel(f"Версия: {get_current_version_text()}"))
+        info_layout.addWidget(QLabel("Copyright (c) 2026 Александр Коваленко"))
+        info_layout.addWidget(QLabel("shurshick@bk.ru"))
 
         project_link = QLabel('<a href="https://github.com/shurshick/pdf-signer-nix">https://github.com/shurshick/pdf-signer-nix</a>')
         project_link.setOpenExternalLinks(True)
-        layout.addWidget(project_link)
+        info_layout.addWidget(project_link)
+        info_layout.addStretch(1)
+        header.addLayout(info_layout, stretch=1)
+        layout.addLayout(header)
 
         self.update_button = QPushButton("Проверить обновления")
         self.update_button.clicked.connect(self.check_updates)

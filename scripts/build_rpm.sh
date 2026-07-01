@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.11}"
+VERSION="${VERSION:-0.2.13}"
 RELEASE="${RELEASE:-1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RPMROOT="$(mktemp -d)"
@@ -55,7 +55,7 @@ install -D -m 0644 %{_sourcedir}/README.md %{buildroot}/usr/share/doc/pdf-signer
 /usr/share/doc/pdf-signer-nix/README.md
 
 %changelog
-* Tue Jun 30 2026 shurshick <noreply@example.com> ${VERSION}-${RELEASE}
+* Wed Jul 01 2026 Александр Коваленко <shurshick@bk.ru> ${VERSION}-${RELEASE}
 - Initial pdf-signer-nix release.
 EOF
 

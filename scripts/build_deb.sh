@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.11}"
+VERSION="${VERSION:-0.2.13}"
 ARCH="${DEB_ARCH:-amd64}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILDROOT="$(mktemp -d)"
@@ -27,7 +27,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: ${ARCH}
-Maintainer: shurshick <noreply@example.com>
+Maintainer: Александр Коваленко <shurshick@bk.ru>
 Homepage: https://github.com/shurshick/pdf-signer-nix
 Depends: libegl1, libgl1, libxkbcommon0, libxkbcommon-x11-0, libx11-xcb1, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-icccm4, libatomic1, fontconfig
 Description: PDF signing and visible stamp tool for Linux with CryptoPro CSP

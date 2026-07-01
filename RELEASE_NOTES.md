@@ -1,15 +1,18 @@
-# PDF Signer Nix v0.2.11
+# PDF Signer Nix v0.2.13
 
-Исправлена подготовка встроенной PDF-подписи для внешних валидаторов.
+Доведены отчет верификации, метаданные автора и CI-релизный workflow.
 
 ## Что исправлено
 
-- Перед записью в `/Contents` встроенная CMS-подпись теперь нормализуется. Это убирает расхождения между detached-проверкой CryptoPro и проверкой встроенной PDF-подписи внешними средствами.
-- Логика режимов подписи из `v0.2.10` сохранена: встроенный режим создаёт один итоговый PDF, detached-режим создаёт `*-signed.pdf` и `.sig`.
+- В отчетах embedded и detached-проверки теперь заполняются данные сертификата, извлеченные из CMS.
+- Исправлены русские строки в модуле верификации.
+- Обновлены авторские данные: Александр Коваленко, `shurshick@bk.ru`.
+- GitHub Actions больше не используют устаревающий release-action для публикации релиза.
 
 ## English
 
-Normalized the embedded CMS signature before writing it into the PDF signature container.
+Verification reporting, author metadata and the release workflow were cleaned up.
 
-- This targets compatibility with stricter third-party PDF validators that accepted the detached signature but rejected the embedded PDF signature container.
-- The `v0.2.10` signing mode cleanup remains in place.
+- Embedded and detached verification reports now include certificate details extracted from CMS.
+- Author metadata now uses Alexander Kovalenko / `shurshick@bk.ru`.
+- The GitHub release workflow now publishes via `gh release` instead of the deprecated release action.

@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Ubuntu tools
         run: |
@@ -34,7 +34,7 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           else
-            echo "VERSION=0.2.11" >> "$GITHUB_ENV"
+            echo "VERSION=0.2.13" >> "$GITHUB_ENV"
           fi
 
       - name: Build EL8 binary and RPM
@@ -72,7 +72,7 @@ jobs:
           test "$status" -eq 124
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pdf-signer-nix-${{ github.ref_name }}
           path: |
@@ -83,12 +83,23 @@ jobs:
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          body_path: RELEASE_NOTES.md
-          files: |
-            artifacts/pdf-signer-nix
-            artifacts/*.deb
-            artifacts/*.rpm
-            artifacts/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" \
+              artifacts/pdf-signer-nix \
+              artifacts/*.deb \
+              artifacts/*.rpm \
+              artifacts/SHA256SUMS.txt \
+              --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              artifacts/pdf-signer-nix \
+              artifacts/*.deb \
+              artifacts/*.rpm \
+              artifacts/SHA256SUMS.txt \
+              --title "PDF Signer Nix ${GITHUB_REF_NAME}" \
+              --notes-file RELEASE_NOTES.md \
+              $(if [[ "${GITHUB_REF_NAME}" == *-* ]]; then echo --prerelease; fi)
+          fi
