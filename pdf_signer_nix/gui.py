@@ -5,7 +5,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QThread, Qt, QUrl, Signal
+from PySide6.QtCore import QPointF, QRectF, QThread, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QKeyEvent, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
@@ -183,7 +183,7 @@ class StampPreviewWidget(QWidget):
         painter.setPen(QPen(QColor("#d0dae7"), 1))
         painter.drawRoundedRect(page, 12, 12)
 
-        stamp_rect = self.stamp_rect(page)
+        stamp_rect = QRectF(self.stamp_rect(page)).adjusted(1.0, 1.0, -1.0, -1.0)
         painter.setPen(QPen(QColor("#004aad"), 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(stamp_rect, 6, 6)
@@ -193,10 +193,14 @@ class StampPreviewWidget(QWidget):
         font.setPointSizeF(layout.font_size)
         painter.setFont(font)
         painter.setPen(QColor("#004aad"))
-        y = stamp_rect.top() + 14
+        text_rect = stamp_rect.adjusted(8, 8, -8, -8)
+        painter.save()
+        painter.setClipRect(text_rect)
+        y = text_rect.top() + layout.font_size
         for line in layout.wrapped_lines[:10]:
-            painter.drawText(QPointF(stamp_rect.left() + 8, y), line)
+            painter.drawText(QPointF(text_rect.left(), y), line)
             y += max(layout.font_size + 2, layout.font_size * 1.25)
+        painter.restore()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self.page_rect().contains(event.position().toPoint()):
@@ -1062,21 +1066,23 @@ def add_form_row(layout: QGridLayout, row: int, left_label: str, left_widget: QW
 
 def rect_for_preview(stamp: StampSettings, page_rect, width: float, height: float):
     margin = stamp.margin
+    page_right = page_rect.x() + page_rect.width()
+    page_bottom = page_rect.y() + page_rect.height()
     if stamp.position == "top-left":
         x = page_rect.left() + margin
         y = page_rect.top() + margin
     elif stamp.position == "top-right":
-        x = page_rect.right() - width - margin
+        x = page_right - width - margin
         y = page_rect.top() + margin
     elif stamp.position == "bottom-left":
         x = page_rect.left() + margin
-        y = page_rect.bottom() - height - margin
+        y = page_bottom - height - margin
     elif stamp.position == "custom":
         x = page_rect.left() + stamp.x
-        y = page_rect.bottom() - height - stamp.y
+        y = page_bottom - height - stamp.y
     else:
-        x = page_rect.right() - width - margin
-        y = page_rect.bottom() - height - margin
+        x = page_right - width - margin
+        y = page_bottom - height - margin
     return page_rect.__class__(int(x), int(y), int(width), int(height))
 
 

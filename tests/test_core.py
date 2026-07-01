@@ -4,6 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from PySide6.QtCore import QRect
 from pypdf import PdfReader
 from reportlab.pdfgen import canvas
 
@@ -14,10 +15,12 @@ from pdf_signer_nix.crypto import (
     list_certificates,
     parse_certmgr_output,
     prepare_pdf_signature_placeholder,
+    verify_signature,
 )
 from pdf_signer_nix.diagnostics import DiagnosticItem, format_diagnostics_report
 from pdf_signer_nix.models import Certificate, StampSettings
 from pdf_signer_nix.pdf_tools import Rect, ensure_stamp_font, rect_for_position, selected_pages, stamp_lines, stamp_pdf
+from pdf_signer_nix.gui import rect_for_preview
 from pdf_signer_nix.settings import default_settings, import_settings, save_settings, stamp_from_payload
 from pdf_signer_nix.update_service import parse_version
 from pdf_signer_nix.verification import extract_pdf_signature
@@ -272,3 +275,37 @@ def test_prepare_and_finalize_embedded_pdf_signature(tmp_path: Path):
     assert signature is not None
     assert signature["contents"].startswith(dummy_cms)
     assert len(signature["signed_content"]) > 0
+
+
+def test_verify_signature_uses_detached_args(monkeypatch, tmp_path: Path):
+    target = tmp_path / "sig.bin"
+    content = tmp_path / "content.bin"
+    target.write_bytes(b"sig")
+    content.write_bytes(b"data")
+    calls: list[list[str]] = []
+
+    def fake_run_command(args: list[str], timeout: int = 120):
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=b"ok", stderr=b"")
+
+    monkeypatch.setattr("pdf_signer_nix.crypto.run_command", fake_run_command)
+    ok, _ = verify_signature(target, content, ToolPaths(certmgr=None, csptest=Path("/opt/cprocsp/bin/amd64/csptest"), cryptcp=None))
+    assert ok is True
+    assert calls == [[
+        "/opt/cprocsp/bin/amd64/csptest",
+        "-sfsign",
+        "-verify",
+        "-detached",
+        "-in",
+        str(content),
+        "-signature",
+        str(target),
+    ]]
+
+
+def test_rect_for_preview_bottom_right_uses_rect_size():
+    stamp = StampSettings(position="bottom-right", width_mm=90, height_mm=35)
+    page_rect = QRect(0, 0, 595, 842)
+    rect = rect_for_preview(stamp, page_rect, 90, 35)
+    assert rect.x() == 469
+    assert rect.y() == 771

@@ -361,9 +361,11 @@ def verify_signature(target: Path, content: Path | None = None, tools: ToolPaths
     tools = tools or discover_tools()
     if tools.csptest is None:
         return False, "csptest не найден."
-    args = [str(tools.csptest), "-sfsign", "-verify", "-in", str(target)]
+    args = [str(tools.csptest), "-sfsign", "-verify"]
     if content is not None:
-        args.extend(["-content", str(content)])
+        args.extend(["-detached", "-in", str(content), "-signature", str(target)])
+    else:
+        args.extend(["-in", str(target)])
     proc = run_command(args, timeout=120)
     ok = proc.returncode == 0
     return ok, tool_output(proc)
