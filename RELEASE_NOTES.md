@@ -1,16 +1,18 @@
-# PDF Signer Nix v0.2.7
+# PDF Signer Nix v0.2.8
 
-Исправлен приоритет поиска утилит CryptoPro.
+Исправлен основной рабочий сценарий подписи на Linux.
 
 ## Что исправлено
 
-- Приложение теперь предпочитает canonical пути CryptoPro из `/opt/cprocsp/...`, а не первый попавшийся `certmgr` из `PATH`.
-- Это важно для систем, где в `/usr/bin/certmgr` лежит обёртка, ссылка или другой бинарник, который ведёт себя не так, как штатный CryptoPro `certmgr`.
-- За счёт этого поиск сертификатов теперь должен идти через тот же бинарник, который у тебя вручную показывает сертификат в `uMy`.
+- Встроенная PDF-подпись больше не ломается на `cryptcp: unrecognized option '-out'`.
+- Подпись теперь встраивается в PDF корректно: приложение резервирует `ByteRange` в документе, получает detached CMS-подпись от `csptest` и записывает её обратно в PDF.
+- Видимый штамп больше не рисует квадраты вместо кириллицы: в приложение добавлен `DejaVuSans.ttf`, который пакуется и в portable-бинарник.
+- Тесты и сборка обновлены под новый путь подписи и новый ассет шрифта.
 
 ## English
 
-Fixed CryptoPro tool lookup priority.
+Fixed the main Linux signing flow.
 
-- The app now prefers canonical CryptoPro binaries from `/opt/cprocsp/...` instead of the first `certmgr` found in `PATH`.
-- This fixes systems where `/usr/bin/certmgr` is a wrapper, symlink, or a different binary that does not behave like the real CryptoPro `certmgr`.
+- Embedded PDF signing no longer fails with `cryptcp: unrecognized option '-out'`.
+- The app now reserves a PDF `ByteRange`, creates a detached CMS signature with `csptest`, and embeds that CMS back into the PDF.
+- The visible stamp now uses a bundled `DejaVuSans.ttf`, so Cyrillic text no longer renders as squares.

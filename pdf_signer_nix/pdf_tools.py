@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from functools import lru_cache
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -8,13 +9,17 @@ from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.colors import Color
 from reportlab.lib.pagesizes import portrait
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from .models import Certificate, StampSettings
+from .paths import asset_path
 
 POINTS_PER_MM = 72.0 / 25.4
 STAMP_BLUE = Color(0 / 255, 74 / 255, 173 / 255)
+STAMP_FONT_NAME = "PDFSignerNixDejaVuSans"
 
 
 @dataclass(slots=True)
@@ -131,6 +136,7 @@ def extract_text_rects(page) -> list[Rect]:
 def make_overlay(page_width: float, page_height: float, rect: Rect, cert: Certificate, settings: StampSettings) -> io.BytesIO:
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=portrait((page_width, page_height)))
+    font_name = ensure_stamp_font()
     c.setFillAlpha(settings.opacity)
     c.setStrokeAlpha(settings.opacity)
     c.setStrokeColor(STAMP_BLUE)
@@ -146,7 +152,7 @@ def make_overlay(page_width: float, page_height: float, rect: Rect, cert: Certif
     layout = validate_stamp_layout(settings, cert, max_width=rect.width - (text_left - rect.x) - 8)
     y = rect.top - 11
     line_height = max(layout.font_size + 1.4, layout.font_size * 1.22)
-    c.setFont("Helvetica", layout.font_size)
+    c.setFont(font_name, layout.font_size)
     for line in layout.wrapped_lines:
         c.drawString(text_left, y, line[:180])
         y -= line_height
@@ -184,10 +190,11 @@ def validate_stamp_layout(settings: StampSettings, cert: Certificate | None = No
     inner_width = max_width if max_width is not None else settings.width_points - 12
     inner_height = settings.height_points - 10
     font_size = settings.font_size
-    wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size)
+    font_name = ensure_stamp_font()
+    wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size, font_name=font_name)
     while font_size > settings.min_font_size and not text_fits(wrapped, inner_height, font_size):
         font_size -= 0.5
-        wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size)
+        wrapped = wrap_stamp_lines(stamp_lines(cert or Certificate(), settings), inner_width, font_size, font_name=font_name)
 
     if not text_fits(wrapped, inner_height, font_size):
         warnings.append("Текст штампа не помещается. Увеличьте размер или отключите часть полей.")
@@ -259,6 +266,15 @@ def wrap_stamp_lines(lines: list[str], max_width: float, font_size: float, font_
             current = current[split:].lstrip()
         wrapped.append(current)
     return wrapped
+
+
+@lru_cache(maxsize=1)
+def ensure_stamp_font() -> str:
+    font_path = asset_path("DejaVuSans.ttf")
+    if font_path.exists():
+        pdfmetrics.registerFont(TTFont(STAMP_FONT_NAME, str(font_path)))
+        return STAMP_FONT_NAME
+    return "Helvetica"
 
 
 def text_fits(lines: list[str], height_points: float, font_size: float) -> bool:

@@ -20,6 +20,7 @@ pyinstaller \
   --onefile \
   --name pdf-signer-nix \
   --add-data "assets/pdf-signer-nix.png:assets" \
+  --add-data "assets/DejaVuSans.ttf:assets" \
   launcher.py
 
 mkdir -p artifacts

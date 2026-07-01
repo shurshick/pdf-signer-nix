@@ -4,8 +4,15 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+
+from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.sign.fields import SigFieldSpec, SigSeedSubFilter
+from pyhanko.sign.signers.cms_embedder import PdfCMSEmbedder, SigIOSetup, SigObjSetup
+from pyhanko.sign.signers.pdf_byterange import SignatureObject
 
 from .models import Certificate
 
@@ -43,6 +50,10 @@ class ToolPaths:
 
 class CryptoProError(RuntimeError):
     pass
+
+
+PDF_SIGNATURE_BYTES_RESERVED = 262144
+PDF_SIGNATURE_FIELD_NAME = "Signature1"
 
 
 def find_tool(name: str) -> Path | None:
@@ -278,35 +289,72 @@ def sign_detached(input_path: Path, output_sig: Path, cert: Certificate, tools: 
     return output_sig
 
 
-def sign_embedded_pdf(input_pdf: Path, output_pdf: Path, cert: Certificate, tools: ToolPaths | None = None) -> Path:
+def sign_embedded_pdf(
+    input_pdf: Path,
+    output_pdf: Path,
+    cert: Certificate,
+    reason: str = "",
+    tools: ToolPaths | None = None,
+) -> Path:
     tools = tools or discover_tools()
-    if tools.cryptcp is None:
+    if tools.csptest is None:
         raise CryptoProError(
-            "cryptcp не найден. Для встроенной PDF-подписи требуется CryptoPro cryptcp. "
-            "Можно создать открепленную .sig подпись."
+            "csptest не найден. Для встроенной PDF-подписи требуется CryptoPro csptest. "
+            "Без него можно создать только открепленную .sig подпись."
         )
     selector = cert.thumbprint or cert.owner
     if not selector:
         raise CryptoProError("Не выбран сертификат подписи.")
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
-    args = [
-        str(tools.cryptcp),
-        "-signf",
-        "-cert",
-        "-der",
-        "-strict",
-        "-thumbprint",
-        selector,
-        "-attached",
-        "-nochain",
-        "-out",
-        str(output_pdf),
-        str(input_pdf),
-    ]
-    proc = run_command(args, timeout=240)
-    if proc.returncode != 0 or not output_pdf.exists():
-        raise CryptoProError(format_tool_error("Ошибка встроенной PDF-подписи", proc))
+    with tempfile.TemporaryDirectory(prefix="pdf-signer-nix-embed-") as temp_dir:
+        temp = Path(temp_dir)
+        payload_path = temp / "pdf-byte-range.bin"
+        signature_path = temp / "pdf-byte-range.sig"
+        prepared = prepare_pdf_signature_placeholder(input_pdf, output_pdf, cert, reason)
+        write_pdf_byte_range_payload(output_pdf, payload_path, prepared.reserved_region_start, prepared.reserved_region_end)
+        sign_detached(payload_path, signature_path, cert, tools)
+        finalize_pdf_signature(output_pdf, prepared, signature_path.read_bytes())
+
+    if not output_pdf.exists() or output_pdf.stat().st_size == 0:
+        raise CryptoProError("Ошибка встроенной PDF-подписи: выходной PDF не создан.")
     return output_pdf
+
+
+def prepare_pdf_signature_placeholder(input_pdf: Path, output_pdf: Path, cert: Certificate, reason: str):
+    with input_pdf.open("rb") as source, output_pdf.open("w+b") as destination:
+        writer = IncrementalPdfFileWriter(source)
+        embedder = PdfCMSEmbedder(
+            new_field_spec=SigFieldSpec(sig_field_name=PDF_SIGNATURE_FIELD_NAME)
+        )
+        protocol = embedder.write_cms(PDF_SIGNATURE_FIELD_NAME, writer, existing_fields_only=False)
+        next(protocol)
+        protocol.send(
+            SigObjSetup(
+                sig_placeholder=SignatureObject(
+                    timestamp=datetime.now(),
+                    subfilter=SigSeedSubFilter.PADES,
+                    name=cert.owner or None,
+                    reason=reason or None,
+                    bytes_reserved=PDF_SIGNATURE_BYTES_RESERVED,
+                )
+            )
+        )
+        prepared, _ = protocol.send(SigIOSetup(md_algorithm="sha256", output=destination))
+        destination.flush()
+        protocol.close()
+        return prepared
+
+
+def write_pdf_byte_range_payload(pdf_path: Path, payload_path: Path, start: int, end: int) -> None:
+    with pdf_path.open("rb") as source, payload_path.open("wb") as destination:
+        destination.write(source.read(start))
+        source.seek(end)
+        shutil.copyfileobj(source, destination)
+
+
+def finalize_pdf_signature(pdf_path: Path, prepared, cms_bytes: bytes) -> None:
+    with pdf_path.open("r+b") as output:
+        prepared.fill_with_cms(output, cms_bytes)
 
 
 def verify_signature(target: Path, content: Path | None = None, tools: ToolPaths | None = None) -> tuple[bool, str]:

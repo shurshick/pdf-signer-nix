@@ -28,7 +28,7 @@ def run_signing_job(job: SigningJob) -> list[SigningResult]:
         if not job.detached_only:
             embedded_target = unique_path(output_dir / f"{source.stem}-signed-embedded.pdf")
             LOG.info("Creating embedded signature for %s", stamped.name)
-            sign_embedded_pdf(stamped, embedded_target, job.certificate)
+            sign_embedded_pdf(stamped, embedded_target, job.certificate, reason=job.stamp.reason)
             stamped = embedded_target
             embedded = True
         verified = None

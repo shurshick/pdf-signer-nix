@@ -43,7 +43,13 @@ def app_root_dir() -> Path:
 
 
 def asset_path(name: str) -> Path:
-    return app_root_dir() / "assets" / name
+    bundled = app_root_dir() / "assets" / name
+    if bundled.exists():
+        return bundled
+    workspace = Path.cwd() / "assets" / name
+    if workspace.exists():
+        return workspace
+    return bundled
 
 
 def installed_icon_path() -> Path:

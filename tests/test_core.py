@@ -4,14 +4,23 @@ import json
 import subprocess
 from pathlib import Path
 
+from pypdf import PdfReader
 from reportlab.pdfgen import canvas
 
-from pdf_signer_nix.crypto import ToolPaths, find_tool, list_certificates, parse_certmgr_output
+from pdf_signer_nix.crypto import (
+    ToolPaths,
+    finalize_pdf_signature,
+    find_tool,
+    list_certificates,
+    parse_certmgr_output,
+    prepare_pdf_signature_placeholder,
+)
 from pdf_signer_nix.diagnostics import DiagnosticItem, format_diagnostics_report
 from pdf_signer_nix.models import Certificate, StampSettings
-from pdf_signer_nix.pdf_tools import Rect, rect_for_position, selected_pages, stamp_lines, stamp_pdf
+from pdf_signer_nix.pdf_tools import Rect, ensure_stamp_font, rect_for_position, selected_pages, stamp_lines, stamp_pdf
 from pdf_signer_nix.settings import default_settings, import_settings, save_settings, stamp_from_payload
 from pdf_signer_nix.update_service import parse_version
+from pdf_signer_nix.verification import extract_pdf_signature
 
 
 def test_parse_certmgr_output_english():
@@ -231,3 +240,35 @@ def test_stamp_pdf_all_pages(tmp_path: Path):
     stamp_pdf(source, output, Certificate(subject="CN=Tester", thumbprint="ABC"), StampSettings(page_mode="all"))
     assert output.exists()
     assert output.stat().st_size > source.stat().st_size
+
+
+def test_ensure_stamp_font_uses_packaged_ttf(monkeypatch):
+    monkeypatch.setattr(
+        "pdf_signer_nix.pdf_tools.asset_path",
+        lambda name: Path.cwd() / "assets" / name,
+    )
+    ensure_stamp_font.cache_clear()
+    assert ensure_stamp_font() == "PDFSignerNixDejaVuSans"
+
+
+def test_prepare_and_finalize_embedded_pdf_signature(tmp_path: Path):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "signed-embedded.pdf"
+    c = canvas.Canvas(str(source))
+    c.drawString(100, 700, "Signed content")
+    c.save()
+
+    prepared = prepare_pdf_signature_placeholder(
+        source,
+        output,
+        Certificate(subject="CN=Tester"),
+        "Signed in tests",
+    )
+    dummy_cms = b"\x30\x06\x06\x04\x2a\x03\x04\x05"
+    finalize_pdf_signature(output, prepared, dummy_cms)
+
+    reader = PdfReader(str(output))
+    signature = extract_pdf_signature(output, reader)
+    assert signature is not None
+    assert signature["contents"].startswith(dummy_cms)
+    assert len(signature["signed_content"]) > 0
