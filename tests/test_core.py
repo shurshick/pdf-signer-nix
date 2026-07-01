@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from PySide6.QtCore import QRect
 from pypdf import PdfReader
@@ -18,12 +19,13 @@ from pdf_signer_nix.crypto import (
     verify_signature,
 )
 from pdf_signer_nix.diagnostics import DiagnosticItem, format_diagnostics_report
-from pdf_signer_nix.models import Certificate, StampSettings
+from pdf_signer_nix.models import Certificate, SigningJob, StampSettings
 from pdf_signer_nix.pdf_tools import Rect, ensure_stamp_font, rect_for_position, selected_pages, stamp_lines, stamp_pdf
 from pdf_signer_nix.gui import rect_for_preview
 from pdf_signer_nix.settings import default_settings, import_settings, save_settings, stamp_from_payload
+from pdf_signer_nix.workflow import run_signing_job
 from pdf_signer_nix.update_service import parse_version
-from pdf_signer_nix.verification import extract_pdf_signature
+from pdf_signer_nix.verification import extract_pdf_signature, verify_pdf
 
 
 def test_parse_certmgr_output_english():
@@ -309,3 +311,98 @@ def test_rect_for_preview_bottom_right_uses_rect_size():
     rect = rect_for_preview(stamp, page_rect, 90, 35)
     assert rect.x() == 469
     assert rect.y() == 771
+
+
+def test_default_settings_signature_mode():
+    settings = default_settings()
+    assert settings["signature_mode"] == "embedded"
+
+
+def test_import_legacy_detached_settings_sets_detached_mode(tmp_path: Path):
+    source = tmp_path / "legacy-settings.json"
+    source.write_text(json.dumps({"settings": {"detached_only": True}}), encoding="utf-8")
+    imported = import_settings(source, default_settings())
+    assert imported["signature_mode"] == "detached"
+
+
+def test_workflow_embedded_writes_single_final_pdf(monkeypatch, tmp_path: Path):
+    source = tmp_path / "source.pdf"
+    source.write_bytes(b"%PDF-1.4\n")
+    calls: list[tuple[str, Path, Path]] = []
+
+    def fake_stamp(input_pdf: Path, output_pdf: Path, cert, settings):
+        calls.append(("stamp", input_pdf, output_pdf))
+        output_pdf.write_bytes(b"stamped")
+        return output_pdf
+
+    def fake_embed(input_pdf: Path, output_pdf: Path, cert, reason="", tools=None):
+        calls.append(("embed", input_pdf, output_pdf))
+        output_pdf.write_bytes(b"embedded")
+        return output_pdf
+
+    monkeypatch.setattr("pdf_signer_nix.workflow.stamp_pdf", fake_stamp)
+    monkeypatch.setattr("pdf_signer_nix.workflow.sign_embedded_pdf", fake_embed)
+    results = run_signing_job(
+        SigningJob(
+            pdf_paths=[source],
+            output_dir=tmp_path,
+            certificate=Certificate(subject="CN=Tester"),
+            signature_mode="embedded",
+            save_next_to_source=True,
+        )
+    )
+    assert results[0].output_pdf.name == "source-signed.pdf"
+    assert results[0].signature_path is None
+    assert [item[0] for item in calls] == ["stamp", "embed"]
+    assert calls[1][2].name == "source-signed.pdf"
+
+
+def test_workflow_detached_writes_pdf_and_sig(monkeypatch, tmp_path: Path):
+    source = tmp_path / "source.pdf"
+    source.write_bytes(b"%PDF-1.4\n")
+
+    def fake_stamp(input_pdf: Path, output_pdf: Path, cert, settings):
+        output_pdf.write_bytes(b"stamped")
+        return output_pdf
+
+    def fake_detached(input_pdf: Path, output_sig: Path, cert, tools=None):
+        output_sig.write_bytes(b"sig")
+        return output_sig
+
+    monkeypatch.setattr("pdf_signer_nix.workflow.stamp_pdf", fake_stamp)
+    monkeypatch.setattr("pdf_signer_nix.workflow.sign_detached", fake_detached)
+    results = run_signing_job(
+        SigningJob(
+            pdf_paths=[source],
+            output_dir=tmp_path,
+            certificate=Certificate(subject="CN=Tester"),
+            signature_mode="detached",
+            save_next_to_source=True,
+        )
+    )
+    assert results[0].output_pdf.name == "source-signed.pdf"
+    assert results[0].signature_path is not None
+    assert results[0].signature_path.name == "source-signed.sig"
+
+
+def test_verify_pdf_reports_warning_for_embedded_container_only(monkeypatch, tmp_path: Path):
+    source = tmp_path / "signed.pdf"
+    source.write_bytes(b"%PDF-1.4\n")
+
+    class FakeReader:
+        pages = [object()]
+
+    monkeypatch.setattr("pdf_signer_nix.verification.PdfReader", lambda _: FakeReader())
+    monkeypatch.setattr(
+        "pdf_signer_nix.verification.extract_pdf_signature",
+        lambda path, reader: {"contents": b"sig", "signed_content": b"payload"},
+    )
+    monkeypatch.setattr(
+        "pdf_signer_nix.verification.verify_signature",
+        lambda signature_path, content_path: (True, "Signature is valid."),
+    )
+
+    report = verify_pdf(source)
+    assert report.status == "WARNING"
+    assert report.signature_exists is True
+    assert report.signature_container_valid is True

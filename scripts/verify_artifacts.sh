@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${VERSION:-0.2.9}"
+VERSION="${VERSION:-0.2.10}"
 ARTIFACTS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/artifacts"
 
 test -x "${ARTIFACTS}/pdf-signer-nix"

@@ -87,8 +87,9 @@ def verify_pdf(path: Path, report: VerificationReport | None = None) -> Verifica
         report.signature_container_valid = ok
 
     if ok:
-        report.status = "VALID"
-        report.status_description = "Встроенная PDF-подпись корректна."
+        report.status = "WARNING"
+        report.status_description = "Контейнер встроенной PDF-подписи читается, но это не гарантирует совместимость со сторонними PDF-валидаторами."
+        report.warnings.append("Проверка выполнена только на уровне CMS-контейнера. Для полной проверки нужен внешний PDF-валидатор.")
     else:
         report.status = "INVALID"
         report.status_description = output or "Не удалось проверить встроенную PDF-подпись."

@@ -1,15 +1,19 @@
-# PDF Signer Nix v0.2.9
+# PDF Signer Nix v0.2.10
 
-Исправлена проверка подписанного PDF после выпуска `v0.2.8`.
+Исправлена логика выходных файлов и превью штампа.
 
 ## Что исправлено
 
-- Исправлена проверка detached и встроенных PDF-подписей.
-- Вместо несуществующего для Linux-версии `csptest` ключа `-content` теперь используется корректный вызов `csptest -sfsign -verify -detached -in <данные> -signature <подпись>`.
-- Из-за этого больше не должно быть ошибки `invalid option -- 'content'` при проверке встроенно подписанного PDF.
+- Теперь всегда создаётся один итоговый PDF `*-signed.pdf`.
+- Лишний промежуточный файл `*-signed-embedded.pdf` больше не остаётся рядом с результатом.
+- Detached-режим работает как отдельный режим: итоговый PDF со штампом плюс `.sig`, без лишней встроенной подписи.
+- Исправлена рамка в предпросмотре редактора штампа.
 
 ## English
 
-Fixed PDF signature verification after `v0.2.8`.
+Fixed output file logic and the stamp preview.
 
-- Replaced the invalid Linux `csptest -content` call with the correct detached verification syntax: `-detached -in <content> -signature <signature>`.
+- The app now always writes a single final `*-signed.pdf`.
+- The stray intermediate `*-signed-embedded.pdf` file is gone.
+- Detached mode now behaves as a real separate mode: stamped PDF plus `.sig`, without an extra embedded-signature attempt.
+- Fixed the stamp editor preview frame rendering.

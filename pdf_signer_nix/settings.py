@@ -23,8 +23,7 @@ def default_settings() -> dict:
         "version": 2,
         "last_output_dir": str(Path.home() / "Documents" / "Signed PDFs"),
         "save_next_to_source": True,
-        "create_detached_sig": False,
-        "detached_only": False,
+        "signature_mode": "embedded",
         "verify_after_signing": False,
         "verification_view": "summary",
         "stamp": stamp_to_payload(StampSettings()),
@@ -80,6 +79,7 @@ def merge_settings(payload: Any) -> dict:
         return merged
 
     deep_update(merged, candidate)
+    merged["signature_mode"] = _normalize_signature_mode(merged)
     merged["stamp"] = stamp_to_payload(stamp_from_payload(merged.get("stamp", {})))
     return merged
 
@@ -168,10 +168,20 @@ def stamp_to_payload(stamp: StampSettings) -> dict[str, Any]:
 def from_windows_settings(settings: dict[str, Any]) -> dict:
     stamp = stamp_from_payload(settings.get("StampProfile", {}))
     return {
+        "signature_mode": "embedded",
         "verify_after_signing": bool(settings.get("VerifyAfterSigning", False)),
         "verification_view": str(settings.get("VerificationView", "summary")).lower(),
         "stamp": stamp_to_payload(stamp),
     }
+
+
+def _normalize_signature_mode(settings: dict[str, Any]) -> str:
+    if bool(settings.get("detached_only")) or bool(settings.get("create_detached_sig")):
+        return "detached"
+    mode = str(settings.get("signature_mode", "")).strip().lower()
+    if mode in {"embedded", "detached"}:
+        return mode
+    return "embedded"
 
 
 def save_stamp_profile(target: Path, stamp: StampSettings) -> None:

@@ -800,8 +800,9 @@ class MainWindow(QMainWindow):
         browse.clicked.connect(self.choose_output_dir)
         self.reason = QLineEdit()
         self.reason.textChanged.connect(self.update_reason)
-        self.create_detached = QCheckBox("Создать открепленную подпись .sig")
-        self.detached_only = QCheckBox("Только .sig, без встроенной подписи PDF")
+        self.signature_mode = QComboBox()
+        self.signature_mode.addItem("Встроенная подпись PDF", "embedded")
+        self.signature_mode.addItem("Открепленная подпись .sig", "detached")
         self.verify_after = QCheckBox("Проверить подпись после создания")
         self.save_next = QCheckBox("Сохранять рядом с исходным PDF")
 
@@ -810,10 +811,10 @@ class MainWindow(QMainWindow):
         options.addWidget(browse, 0, 2)
         options.addWidget(QLabel("Причина"), 1, 0)
         options.addWidget(self.reason, 1, 1, 1, 2)
-        options.addWidget(self.create_detached, 2, 1, 1, 2)
-        options.addWidget(self.detached_only, 3, 1, 1, 2)
-        options.addWidget(self.verify_after, 4, 1, 1, 2)
-        options.addWidget(self.save_next, 5, 1, 1, 2)
+        options.addWidget(QLabel("Режим подписи"), 2, 0)
+        options.addWidget(self.signature_mode, 2, 1, 1, 2)
+        options.addWidget(self.verify_after, 3, 1, 1, 2)
+        options.addWidget(self.save_next, 4, 1, 1, 2)
         layout.addLayout(options)
 
         self.progress = QProgressBar()
@@ -847,8 +848,9 @@ class MainWindow(QMainWindow):
     def _load_settings_to_controls(self) -> None:
         self.output_dir.setText(self.settings.get("last_output_dir", ""))
         self.reason.setText(self.stamp_settings.reason)
-        self.create_detached.setChecked(bool(self.settings.get("create_detached_sig", False)))
-        self.detached_only.setChecked(bool(self.settings.get("detached_only", False)))
+        signature_mode = str(self.settings.get("signature_mode", "embedded")).lower()
+        index = self.signature_mode.findData(signature_mode)
+        self.signature_mode.setCurrentIndex(index if index >= 0 else 0)
         self.verify_after.setChecked(bool(self.settings.get("verify_after_signing", False)))
         self.save_next.setChecked(bool(self.settings.get("save_next_to_source", True)))
 
@@ -856,12 +858,16 @@ class MainWindow(QMainWindow):
         settings = default_settings()
         settings["last_output_dir"] = self.output_dir.text()
         settings["save_next_to_source"] = self.save_next.isChecked()
-        settings["create_detached_sig"] = self.create_detached.isChecked()
-        settings["detached_only"] = self.detached_only.isChecked()
+        settings["signature_mode"] = self.signature_mode_from_controls()
+        settings["create_detached_sig"] = settings["signature_mode"] == "detached"
+        settings["detached_only"] = settings["signature_mode"] == "detached"
         settings["verify_after_signing"] = self.verify_after.isChecked()
         self.stamp_settings.reason = self.reason.text().strip() or self.stamp_settings.reason
         settings["stamp"] = stamp_to_payload(self.stamp_settings)
         return settings
+
+    def signature_mode_from_controls(self) -> str:
+        return str(self.signature_mode.currentData() or "embedded")
 
     def add_pdfs(self) -> None:
         files, _ = QFileDialog.getOpenFileNames(self, "Добавить PDF", "", "PDF (*.pdf)")
@@ -961,8 +967,7 @@ class MainWindow(QMainWindow):
             output_dir=Path(self.output_dir.text() or Path.home()),
             certificate=cert,
             stamp=self.stamp_settings.clone(),
-            detached_only=self.detached_only.isChecked(),
-            create_detached_sig=self.create_detached.isChecked(),
+            signature_mode=self.signature_mode_from_controls(),
             save_next_to_source=self.save_next.isChecked(),
             verify_after_signing=self.verify_after.isChecked(),
         )

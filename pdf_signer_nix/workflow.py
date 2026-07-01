@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 from pathlib import Path
 
 from .crypto import sign_detached, sign_embedded_pdf
@@ -16,29 +17,32 @@ def run_signing_job(job: SigningJob) -> list[SigningResult]:
     job.stamp.normalize()
     for source in job.pdf_paths:
         output_dir = source.parent if job.save_next_to_source else job.output_dir
-        stamped = unique_path(output_dir / f"{source.stem}-signed.pdf")
-        LOG.info("Stamping PDF %s", source.name)
-        stamp_pdf(source, stamped, job.certificate, job.stamp)
+        final_pdf = unique_path(output_dir / f"{source.stem}-signed.pdf")
         signature_path: Path | None = None
-        embedded = False
-        if job.detached_only or job.create_detached_sig:
-            signature_path = unique_path(stamped.with_suffix(".sig"))
-            LOG.info("Creating detached signature for %s", stamped.name)
-            sign_detached(stamped, signature_path, job.certificate)
-        if not job.detached_only:
-            embedded_target = unique_path(output_dir / f"{source.stem}-signed-embedded.pdf")
-            LOG.info("Creating embedded signature for %s", stamped.name)
-            sign_embedded_pdf(stamped, embedded_target, job.certificate, reason=job.stamp.reason)
-            stamped = embedded_target
-            embedded = True
+        embedded = job.signature_mode == "embedded"
+
+        if job.signature_mode == "detached":
+            LOG.info("Stamping PDF %s to final detached target", source.name)
+            stamp_pdf(source, final_pdf, job.certificate, job.stamp)
+            signature_path = unique_path(final_pdf.with_suffix(".sig"))
+            LOG.info("Creating detached signature for %s", final_pdf.name)
+            sign_detached(final_pdf, signature_path, job.certificate)
+        else:
+            with tempfile.TemporaryDirectory(prefix="pdf-signer-nix-stamp-") as temp_dir:
+                stamped_temp = Path(temp_dir) / f"{source.stem}-stamped.pdf"
+                LOG.info("Stamping PDF %s to temporary file for embedded signing", source.name)
+                stamp_pdf(source, stamped_temp, job.certificate, job.stamp)
+                LOG.info("Creating embedded signature for %s", stamped_temp.name)
+                sign_embedded_pdf(stamped_temp, final_pdf, job.certificate, reason=job.stamp.reason)
+
         verified = None
         message = ""
         if job.verify_after_signing:
-            target = signature_path or stamped
+            target = signature_path or final_pdf
             report = verify_file(target)
             verified = report.status == "VALID"
             message = report.status_description
-        results.append(SigningResult(source, stamped, signature_path, embedded, verified, message))
+        results.append(SigningResult(source, final_pdf, signature_path, embedded, verified, message))
     return results
 
 

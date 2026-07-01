@@ -10,6 +10,7 @@ StampPageMode = Literal["all", "first", "last", "specific"]
 StampTemplateName = Literal["gost-minimal", "gost-standard", "gost-detailed", "custom"]
 StampSizeMode = Literal["minimal", "standard", "detailed", "custom"]
 VerificationStatus = Literal["VALID", "WARNING", "INVALID"]
+SignatureMode = Literal["embedded", "detached"]
 
 
 @dataclass(slots=True)
@@ -154,8 +155,7 @@ class SigningJob:
     output_dir: Path
     certificate: Certificate
     stamp: StampSettings = field(default_factory=StampSettings)
-    detached_only: bool = False
-    create_detached_sig: bool = False
+    signature_mode: SignatureMode = "embedded"
     save_next_to_source: bool = True
     verify_after_signing: bool = False
 
