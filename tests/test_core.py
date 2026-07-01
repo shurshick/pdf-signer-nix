@@ -81,6 +81,8 @@ SHA1 отпечаток      : aa bb cc
     assert certs[0].thumbprint == "AABBCC"
 
 
+
+
 def test_rect_intersection():
     assert Rect(0, 0, 10, 10).intersects(Rect(5, 5, 10, 10))
     assert not Rect(0, 0, 10, 10).intersects(Rect(10, 0, 10, 10))

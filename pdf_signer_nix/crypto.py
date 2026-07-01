@@ -16,6 +16,19 @@ CPRO_BIN_DIRS = (
     Path("/opt/cprocsp/sbin/amd64"),
 )
 
+FIELD_PREFIXES = {
+    "subject": ("subject", "субъект", "рўсѓр±сњрµрєс‚"),
+    "issuer": ("issuer", "издатель", "рр·рґр°с‚рµр»сњ"),
+    "serial": ("serial number", "серийный номер", "рўрµсђрёр№рѕс‹р№ рѕрѕрјрµсђ"),
+    "thumbprint": ("sha1 hash", "sha1 thumbprint", "sha1 отпечаток", "sha1 рѕс‚рїрµс‡р°с‚рѕрє"),
+    "container": ("container", "контейнер", "рљрѕрѕс‚рµр№рѕрµсђ"),
+    "provider": ("provider name", "имя провайдера", "ррјсџ рїсђрѕрір°р№рҙрµсђр°"),
+    "not_before": ("not valid before", "notbefore", "действителен с", "выдан", "р’с‹рҙр°рѕ"),
+    "not_after": ("not valid after", "notafter", "действителен до", "истекает", "рсѓс‚рµрєр°рµс‚"),
+    "private_key": ("private key link", "private key", "ссылка на ключ", "рЎсѓс‹р»рєр° рѕр° рєр»сћс‡"),
+    "chain": ("certificate chain", "цепочка сертификатов", "с†рµрїрѕс‡рєр° сѓрµсђс‚рёр„рёрєр°с‚рѕрІ"),
+}
+
 
 @dataclass(slots=True)
 class ToolPaths:
@@ -146,32 +159,89 @@ def parse_cert_block(lines: list[str]) -> Certificate:
             continue
         key, value = split_field(line)
         normalized = normalize_field_name(key)
-        if normalized.startswith(("certificate chain", "цепочка сертификатов")):
+        if matches_field(normalized, "chain"):
             break
-        if normalized.startswith(("subject", "субъект")) and not cert.subject:
+        if matches_field(normalized, "subject") and not cert.subject:
             cert.subject = value
-        elif normalized.startswith(("issuer", "издатель")) and not cert.issuer:
+        elif matches_field(normalized, "issuer") and not cert.issuer:
             cert.issuer = value
-        elif normalized.startswith(("serial number", "серийный номер")) and not cert.serial:
+        elif matches_field(normalized, "serial") and not cert.serial:
             cert.serial = value.replace(" ", "")
-        elif ("sha1" in normalized or "отпечат" in normalized) and not cert.thumbprint:
+        elif matches_field(normalized, "thumbprint") and not cert.thumbprint:
             cert.thumbprint = value.replace(" ", "").upper()
-        elif normalized.startswith(("container", "контейнер")) and not cert.container:
+        elif matches_field(normalized, "container") and not cert.container:
             cert.container = value
-        elif normalized.startswith(("provider name", "имя провайдера")) and not cert.provider:
+        elif matches_field(normalized, "provider") and not cert.provider:
             cert.provider = value
-        elif normalized.startswith(("not valid before", "notbefore", "действителен с", "выдан")) and not cert.not_before:
+        elif matches_field(normalized, "not_before") and not cert.not_before:
             cert.not_before = value
-        elif normalized.startswith(("not valid after", "notafter", "действителен до", "истекает")) and not cert.not_after:
+        elif matches_field(normalized, "not_after") and not cert.not_after:
             cert.not_after = value
-        elif normalized.startswith(("private key link", "private key", "ссылка на ключ")):
+        elif matches_field(normalized, "private_key"):
             lowered = value.lower()
             cert.has_private_key = lowered not in {"", "нет", "no", "not found", "absent"}
+        elif looks_like_dn_value(value):
+            if not cert.issuer:
+                cert.issuer = value
+            elif not cert.subject:
+                cert.subject = value
+        elif looks_like_serial_value(value) and not cert.serial:
+            cert.serial = value
+        elif looks_like_thumbprint_value(value) and not cert.thumbprint:
+            cert.thumbprint = value.replace(" ", "").upper()
+        elif looks_like_container_value(value) and not cert.container:
+            cert.container = value
+        elif looks_like_provider_value(value) and not cert.provider:
+            cert.provider = value
+        elif looks_like_datetime_value(value):
+            if not cert.not_before:
+                cert.not_before = value
+            elif not cert.not_after:
+                cert.not_after = value
+        elif looks_like_private_key_value(value) and cert.has_private_key is None:
+            cert.has_private_key = True
     return cert
 
 
 def normalize_field_name(key: str) -> str:
     return " ".join(key.strip().lower().replace("ё", "е").split())
+
+
+def matches_field(normalized: str, field: str) -> bool:
+    return any(normalized.startswith(prefix) for prefix in FIELD_PREFIXES[field])
+
+
+def looks_like_dn_value(value: str) -> bool:
+    upper = value.upper()
+    return "CN=" in upper and ("," in value or any(token in upper for token in ("O=", "SN=", "G=", "ИНН=", "INN=", "СНИЛС=", "SNILS=")))
+
+
+def looks_like_serial_value(value: str) -> bool:
+    compact = value.replace(" ", "")
+    return compact.startswith("0x") and len(compact) > 6
+
+
+def looks_like_thumbprint_value(value: str) -> bool:
+    compact = value.replace(" ", "")
+    return len(compact) >= 16 and all(ch in "0123456789abcdefABCDEF" for ch in compact)
+
+
+def looks_like_container_value(value: str) -> bool:
+    upper = value.upper()
+    return "HDIMAGE" in upper or "\\\\" in value
+
+
+def looks_like_provider_value(value: str) -> bool:
+    upper = value.upper()
+    return "CRYPTO-PRO" in upper and "CSP" in upper
+
+
+def looks_like_datetime_value(value: str) -> bool:
+    return bool(re.match(r"^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2} UTC$", value))
+
+
+def looks_like_private_key_value(value: str) -> bool:
+    return value.strip().lower() in {"есть", "yes", "true", "present"}
 
 
 def split_field(line: str) -> tuple[str, str]:

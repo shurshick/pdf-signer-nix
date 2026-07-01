@@ -1,22 +1,17 @@
-# PDF Signer Nix v0.2.5
+# PDF Signer Nix v0.2.6
 
-Это уже не косметика, а реальный фикс поиска сертификатов.
+Исправлен ещё один реальный сбой поиска сертификатов на Linux.
 
 ## Что исправлено
 
-- Исправлен разбор вывода `certmgr` на Linux для реальных русских хранилищ CryptoPro.
-- Приложение теперь корректно понимает поля `Субъект`, `Издатель`, `Серийный номер`, `Контейнер`, `Имя провайдера`, `Выдан`, `Истекает`, `Ссылка на ключ`.
-- Добавлен более устойчивый декод вывода CryptoPro: `utf-8`, `cp1251`, `cp866`.
-- Если `certmgr` печатает сертификаты в `stderr` и даже возвращает неидеальный код выхода, приложение всё равно забирает сертификаты, если они реально есть в выводе.
-
-## Почему прошлый релиз был плохим
-
-Он исправлял только часть случаев и не покрывал реальный вывод `certmgr` из Linux-систем с русской локалью. По факту сертификаты могли быть в системе, но список в приложении оставался пустым.
+- Разбор сертификатов теперь не зависит только от точного текста заголовков `certmgr`.
+- Добавлен запасной разбор по типу значения и порядку строк: DN, серийный номер, SHA1, контейнер, провайдер, даты, признак ключа.
+- За счёт этого приложение корректно подхватывает сертификат из реального вывода `certmgr -list -store uMy`, который раньше в `0.2.5` всё ещё не попадал в список.
 
 ## English
 
-This release fixes real-world CryptoPro certificate discovery on Linux.
+Another real Linux certificate-discovery failure has been fixed.
 
-- Fixed parsing of actual Russian `certmgr` output.
-- Added more robust CryptoPro output decoding: `utf-8`, `cp1251`, `cp866`.
-- The app now accepts certificate listings from `stderr` and still parses them even when `certmgr` returns a non-ideal exit code.
+- Certificate parsing no longer depends only on exact `certmgr` field labels.
+- Added fallback parsing by value type and line order: DN, serial, SHA1, container, provider, dates, and private-key marker.
+- This fixes the real `certmgr -list -store uMy` output that still failed in `0.2.5`.

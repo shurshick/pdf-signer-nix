@@ -33,9 +33,9 @@ CryptoPro CSP не бандлится. Это внешняя зависимос�
 
 ```bash
 pytest -q
-VERSION=0.2.5 ./scripts/build_deb.sh
-VERSION=0.2.5 ./scripts/build_rpm.sh
-VERSION=0.2.5 ./scripts/verify_artifacts.sh
+VERSION=0.2.6 ./scripts/build_deb.sh
+VERSION=0.2.6 ./scripts/build_rpm.sh
+VERSION=0.2.6 ./scripts/verify_artifacts.sh
 ```
 
 Для RPM одной сборки мало. Нужен запуск на целевой системе или в совместимом окружении вроде RedOS 8, AlmaLinux 8, Rocky 8.
