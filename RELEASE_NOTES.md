@@ -1,17 +1,16 @@
-# PDF Signer Nix v0.2.6
+# PDF Signer Nix v0.2.7
 
-Исправлен ещё один реальный сбой поиска сертификатов на Linux.
+Исправлен приоритет поиска утилит CryptoPro.
 
 ## Что исправлено
 
-- Разбор сертификатов теперь не зависит только от точного текста заголовков `certmgr`.
-- Добавлен запасной разбор по типу значения и порядку строк: DN, серийный номер, SHA1, контейнер, провайдер, даты, признак ключа.
-- За счёт этого приложение корректно подхватывает сертификат из реального вывода `certmgr -list -store uMy`, который раньше в `0.2.5` всё ещё не попадал в список.
+- Приложение теперь предпочитает canonical пути CryptoPro из `/opt/cprocsp/...`, а не первый попавшийся `certmgr` из `PATH`.
+- Это важно для систем, где в `/usr/bin/certmgr` лежит обёртка, ссылка или другой бинарник, который ведёт себя не так, как штатный CryptoPro `certmgr`.
+- За счёт этого поиск сертификатов теперь должен идти через тот же бинарник, который у тебя вручную показывает сертификат в `uMy`.
 
 ## English
 
-Another real Linux certificate-discovery failure has been fixed.
+Fixed CryptoPro tool lookup priority.
 
-- Certificate parsing no longer depends only on exact `certmgr` field labels.
-- Added fallback parsing by value type and line order: DN, serial, SHA1, container, provider, dates, and private-key marker.
-- This fixes the real `certmgr -list -store uMy` output that still failed in `0.2.5`.
+- The app now prefers canonical CryptoPro binaries from `/opt/cprocsp/...` instead of the first `certmgr` found in `PATH`.
+- This fixes systems where `/usr/bin/certmgr` is a wrapper, symlink, or a different binary that does not behave like the real CryptoPro `certmgr`.

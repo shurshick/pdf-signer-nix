@@ -51,13 +51,13 @@ def find_tool(name: str) -> Path | None:
         candidate = Path(os.environ[env_name])
         if candidate.exists():
             return candidate
-    path = shutil.which(name)
-    if path and is_crypto_tool_path(Path(path)):
-        return Path(path)
     for directory in CPRO_BIN_DIRS:
         candidate = directory / name
         if candidate.exists():
             return candidate
+    path = shutil.which(name)
+    if path and is_crypto_tool_path(Path(path)):
+        return Path(path)
     return None
 
 

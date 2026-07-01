@@ -6,7 +6,7 @@ from pathlib import Path
 
 from reportlab.pdfgen import canvas
 
-from pdf_signer_nix.crypto import ToolPaths, list_certificates, parse_certmgr_output
+from pdf_signer_nix.crypto import ToolPaths, find_tool, list_certificates, parse_certmgr_output
 from pdf_signer_nix.diagnostics import DiagnosticItem, format_diagnostics_report
 from pdf_signer_nix.models import Certificate, StampSettings
 from pdf_signer_nix.pdf_tools import Rect, rect_for_position, selected_pages, stamp_lines, stamp_pdf
@@ -79,6 +79,14 @@ SHA1 отпечаток      : aa bb cc
     assert len(certs) == 1
     assert certs[0].owner == "Коваленко Александр Сергеевич"
     assert certs[0].thumbprint == "AABBCC"
+
+
+def test_find_tool_prefers_cryptopro_dir_over_path(monkeypatch):
+    monkeypatch.delenv("PDF_SIGNER_NIX_CERTMGR", raising=False)
+    monkeypatch.setattr("pdf_signer_nix.crypto.CPRO_BIN_DIRS", (Path("/opt/cprocsp/bin/amd64"),))
+    monkeypatch.setattr("pdf_signer_nix.crypto.shutil.which", lambda name: "/usr/bin/certmgr")
+    monkeypatch.setattr(Path, "exists", lambda self: str(self) == "/opt/cprocsp/bin/amd64/certmgr")
+    assert find_tool("certmgr") == Path("/opt/cprocsp/bin/amd64/certmgr")
 
 
 
